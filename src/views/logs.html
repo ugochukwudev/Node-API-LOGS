@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Logs</title>
+    <link rel="stylesheet" href="/styles/tailwind.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 16px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            border-radius: 16px;
+        }
+        th {
+            background-color: #000;
+            border-radius:16px;
+        }
+        .pagination {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .pagination button {
+            margin: 0 2px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body class="bg-black text-white p-6 flex flex-col gap-y-6">
+    <h1 class="text-white text-3xl text-center">API Logs</h1>
+    <div class="flex gap-x-4">
+        <input class=" w-[30%] p-4 rounded-lg text-base text-black" placeholder="Search for endpoint" />
+        <input class=" w-[10%] p-4 rounded-lg text-base text-black" type="date" placeholder="Search logs by date" />
+        <input class=" w-[10%] p-4 rounded-lg text-base text-black" type="time"  />
+        <input class=" w-[20%] p-4 rounded-lg text-base text-black" type="text" placeholder="request status" />
+        <input class=" w-[10%] p-4 rounded-lg text-base text-black" type="text" placeholder="pagination number" />
+        <button class="bg-blue-600 rounded-lg py-2 px-4 active:opacity-60 transition-all duration-[100] ease-linear hover:opacity-85">Clear date and time</button>
+    </div>
+    <p class="text-red-500">click outside the input to initiate the filter</p>
+    <table id="logs-table">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody id="logs-container" class="px-6"></tbody>
+    </table>
+    <div class="pagination">
+        <button id="prev-btn" class="bg-blue-600 p-2 rounded-lg">Previous</button>
+        <span  class="bg-gray-500 px-2 py-2 rounded-lg" id="page-info"></span>
+        <button id="next-btn" class="bg-blue-600 p-2 rounded-lg">Next</button>
+    </div>
+
+   
+    <script src="/js/logs.js"></script>
+
+</body>
+</html>
