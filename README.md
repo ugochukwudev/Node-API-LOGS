@@ -214,6 +214,7 @@ For issues or questions, feel free to contact me at:
 
 - GitHub: [Ugochukwudev](https://github.com/ugochukwudev)
 - Twitter [Impulsejs](https://x.com/impulsejs)
+- Blog [Techgix] (https://techgix.xyz)
 
   
 

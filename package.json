@@ -1,6 +1,6 @@
 {
   "name": "node-api-logs",
-  "version": "1.0.71",
+  "version": "1.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -12,7 +12,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": " A package to see logs on your server",
+  "description": " A package to see logs on your nodejs server (expressjs)",
   "dependencies": {
     "autoprefixer": "^10.4.20",
     "bcrypt": "^5.1.1",
