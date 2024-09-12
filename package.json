@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "description": " A package to see logs on your nodejs server (expressjs)",
+  "homepage": "https://github.com/ugochukwudev/Node-API-LOGS",
   "dependencies": {
     "autoprefixer": "^10.4.20",
     "bcrypt": "^5.1.1",
