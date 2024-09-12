@@ -57,7 +57,7 @@ const getLogById = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         const log = yield apilogs_model_1.default.findById(id);
         if (!log)
             return res.status(404).json({ message: 'Log not found' });
-        res.json(log);
+        res.json({ log });
     }
     catch (error) {
         res.status(500).json({ message: `Server error:${error}` });

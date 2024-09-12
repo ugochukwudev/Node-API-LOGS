@@ -1,6 +1,7 @@
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    document.getElementById("login-btn").textContent = "loading";
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
@@ -18,8 +19,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             window.location.href = '/logs'; // Redirect to logs page on successful login
         } else {
             document.getElementById('error-message').textContent = result.message;
+            document.getElementById("login-btn").textContent = "Login";
+
         }
     } catch (error) {
-        document.getElementById('error-message').textContent = 'An error occurred';
+        document.getElementById('error-message').textContent = error;
+        document.getElementById("login-btn").textContent = "Login";
+
     }
 })

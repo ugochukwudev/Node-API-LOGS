@@ -23,6 +23,9 @@ async function fetchLogs(page = 1) {
     logsContainer.innerHTML = '';
 
     if (!data.logs) {
+        if(data.message=="Invalid token"){
+            window.location.pathname="/logs/login";
+        }
         return alert(JSON.stringify(data.message));
     }
 

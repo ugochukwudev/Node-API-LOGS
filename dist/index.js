@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createApp = void 0;
+exports.CreateNextLogger = exports.createExpressLogger = void 0;
 const express_1 = __importDefault(require("express")); // Import express and Application
 const mongoose_1 = __importDefault(require("mongoose"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
@@ -11,13 +11,13 @@ const path_1 = __importDefault(require("path"));
 const api_1 = __importDefault(require("./routes/api"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const log_1 = require("./middleware/log");
-const createApp = (app, mongoUri) => {
+const createExpressLogger = ({ app, mongoUri, beginswith, specifics }) => {
     mongoose_1.default.connect(mongoUri)
-        .then(() => console.log('MongoDB connected'))
-        .catch(err => console.error('MongoDB connection error:', err));
+        .then(() => console.log('node api logger db connected'))
+        .catch(err => console.error('node api logger db connection error:', err));
     app.use((0, cookie_parser_1.default)());
     // Middleware for logging
-    app.use((0, log_1.logMiddleware)(mongoUri));
+    app.use((0, log_1.logMiddleware)(beginswith, specifics));
     // API and Auth Routes
     app.use('/logs/api', api_1.default);
     app.use('/logs/auth', auth_1.default);
@@ -30,5 +30,7 @@ const createApp = (app, mongoUri) => {
     app.get('/logs', (req, res) => res.sendFile(path_1.default.join(__dirname, '../src/views/logs.html')));
     app.get('/logs/:id', (req, res) => res.sendFile(path_1.default.join(__dirname, '../src/views/logDetails.html')));
 };
-exports.createApp = createApp;
+exports.createExpressLogger = createExpressLogger;
+const CreateNextLogger = () => { };
+exports.CreateNextLogger = CreateNextLogger;
 //# sourceMappingURL=index.js.map

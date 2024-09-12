@@ -16,17 +16,25 @@ exports.loginUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const user_model_1 = __importDefault(require("../models/user.model"));
+const jwtSecret = process.env.node_api_logger_jwtSecret || "your_secret_key";
+const hashPassword = (password) => __awaiter(void 0, void 0, void 0, function* () {
+    const hashedPassword = yield bcrypt_1.default.hash(password, 10);
+    return hashedPassword;
+});
+const generateToken = (user, res) => {
+    const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, jwtSecret, { expiresIn: '1h' });
+    res.cookie('token', token, { httpOnly: true });
+    return;
+};
 const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email, password } = req.body;
     try {
         let allusers = (yield user_model_1.default.find({}));
         if (allusers.length == 0) {
-            //create first user
-            const hashedPassword = yield bcrypt_1.default.hash(password, 10);
+            const hashedPassword = yield hashPassword(password);
             const user = new user_model_1.default({ email, password: hashedPassword, role: 'admin' });
             yield user.save();
-            const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, 'your_secret_key', { expiresIn: '1h' });
-            res.cookie('token', token, { httpOnly: true });
+            generateToken(user, res);
             res.json({ message: 'Logged in successfully' });
         }
         let user = yield user_model_1.default.findOne({ email });
@@ -38,17 +46,15 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 const isMatch = yield bcrypt_1.default.compare(password, user.password);
                 if (!isMatch)
                     return res.status(400).json({ message: 'Invalid credentials' });
-                const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, 'your_secret_key', { expiresIn: '1h' });
-                res.cookie('token', token, { httpOnly: true });
+                generateToken(user, res);
                 res.json({ message: 'Logged in successfully' });
             }
             else {
-                const hashedPassword = yield bcrypt_1.default.hash(password, 10);
+                const hashedPassword = yield hashPassword(password);
                 user.password = hashedPassword;
                 user.role = "dev";
                 yield user.save();
-                const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, 'your_secret_key', { expiresIn: '1h' });
-                res.cookie('token', token, { httpOnly: true });
+                generateToken(user, res);
                 res.json({ message: 'Logged in successfully' });
             }
         }

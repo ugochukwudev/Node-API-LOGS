@@ -6,15 +6,18 @@ import apiRoutes from './routes/api';
 import authRoutes from './routes/auth';
 import { logMiddleware } from './middleware/log';
 
-export const createApp = (app: Application, mongoUri: string) => {
+export const createExpressLogger = ({app, mongoUri,beginswith,specifics}:{
+    app:Application,mongoUri:string,beginswith?:string[],specifics?:string[]
+}) => {
+
     mongoose.connect(mongoUri)
-        .then(() => console.log('MongoDB connected'))
-        .catch(err => console.error('MongoDB connection error:', err));
+        .then(() => console.log('node api logger db connected'))
+        .catch(err => console.error('node api logger db connection error:', err));
 
     app.use(cookieParser());
 
     // Middleware for logging
-    app.use(logMiddleware(mongoUri));
+    app.use(logMiddleware(beginswith,specifics));
 
     // API and Auth Routes
     app.use('/logs/api', apiRoutes);
@@ -30,3 +33,5 @@ app.use('/js', express.static(path.join(__dirname, '../src/views/js')));
     app.get('/logs', (req, res) => res.sendFile(path.join(__dirname, '../src/views/logs.html')));
     app.get('/logs/:id', (req, res) => res.sendFile(path.join(__dirname, '../src/views/logDetails.html')));
 };
+
+export const CreateNextLogger=()=>{}

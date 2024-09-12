@@ -52,7 +52,7 @@ export const getLogById = async (req: Request, res: Response) => {
         const log = await ApiLog.findById(id);
         if (!log) return res.status(404).json({ message: 'Log not found' });
 
-        res.json(log);
+        res.json({log});
     } catch (error) {
         res.status(500).json({ message: `Server error:${error}` });
     }
