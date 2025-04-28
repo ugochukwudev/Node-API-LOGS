@@ -20,7 +20,7 @@ A comprehensive API logging and monitoring system for Node.js + Express applicat
 ### 1. Real-time API Monitoring
 
 - Track all API requests in real-time
-- Monitor response times, status codes, and request/response bodies
+- Monitor response times, session logs, status codes, and request/response bodies
 - Filter logs by endpoint, date, time, and status code
 
 ### 2. Comprehensive Dashboard
