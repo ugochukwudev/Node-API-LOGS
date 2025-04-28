@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings - API Logs</title>
+  <link rel="stylesheet" href="/styles/tailwind.css" />
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+  <!-- Sidebar (Desktop) -->
+  <aside class="hidden md:flex md:flex-col w-64 bg-gray-800 text-gray-100">
+    <div class="h-16 flex items-center justify-center border-b border-gray-700 text-xl font-bold">API Logs</div>
+    <nav class="flex-1 p-4 space-y-2">
+      <a href="/logs/home" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Dashboard</a>
+      <a href="/logs" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Logs</a>
+      <a href="/logs/settings" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium bg-gray-700">Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Mobile Header -->
+  <header class="md:hidden w-full bg-gray-800 text-gray-100 p-4 flex justify-between items-center">
+    <span class="text-lg font-bold">API Logs</span>
+    <span>&#9776;</span>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-auto">
+    <h1 class="text-2xl font-bold mb-4">Settings</h1>
+    <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Logout</button>
+  </main>
+
+  <script src="/js/settings.js"></script>
+</body>
+</html> 

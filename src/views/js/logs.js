@@ -1,78 +1,63 @@
-let currentPage = 1;
-const limit = 20;
+document.addEventListener('DOMContentLoaded', () => {
+  const limit = 20;
+  let currentPage = 1;
 
-async function fetchLogs(page = 1) {
-    const endpoint = document.querySelector('input[placeholder="Search for endpoint"]').value || '';
-    const date = document.querySelector('input[type="date"]').value || '';
-    const time = document.querySelector('input[type="time"]').value || '';
-    const status = document.querySelector('input[placeholder="request status"]').value || '';
-    const pagination = document.querySelector('input[placeholder="pagination number"]').value || page;
-
-    const queryParams = new URLSearchParams({
-        page: pagination,
-        limit,
-        endpoint,
-        date,
-        time,
-        status
-    }).toString();
-
-    const response = await fetch(`/logs/api/logs?${queryParams}`);
-    const data = await response.json();
-    const logsContainer = document.getElementById('logs-container');
-    logsContainer.innerHTML = '';
-
-    if (!data.logs) {
-        if(data.message=="Invalid token"){
-            window.location.pathname="/logs/login";
-        }
-        return alert(JSON.stringify(data.message));
+  // Redirect to login page if any API call returns 401
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const res = await originalFetch(...args);
+    if (res.status === 401) {
+      window.location.href = '/logs/login';
     }
+    return res;
+  };
 
+  // Fetch and render logs table
+  async function fetchLogs(page = 1) {
+    currentPage = page;
+    // Collect filters
+    const endpoint = document.getElementById('filter-endpoint').value;
+    const date = document.getElementById('filter-date').value;
+    const time = document.getElementById('filter-time').value;
+    const status = document.getElementById('filter-status').value;
+    // Request logs
+    const params = new URLSearchParams({ page, limit, endpoint, date, time, status });
+    const res = await fetch(`/logs/api/logs?${params}`);
+    const data = await res.json();
+    // Populate table
+    const container = document.getElementById('logs-container');
+    container.innerHTML = '';
     data.logs.forEach(log => {
-        const string_text = log.status.toLocaleString();
-        const text_color = string_text.startsWith("2") ? "green" : string_text.startsWith("3") ? "yellow" : string_text.startsWith("4") ? "blue" : string_text.startsWith("5") ? "red" : "purple";
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td style="color:${text_color};">${log.method}</td>
-            <td style="color:${text_color};"><a href="/logs/${log._id}">${log.endpoint}</a></td>
-            <td style="color:${text_color};">${log.status}</td>
-            <td style="color:${text_color};">${new Date(log.date).toLocaleString()}</td>
-        `;
-        logsContainer.appendChild(row);
+      const color = log.status < 300 ? 'text-green-500' : log.status < 400 ? 'text-yellow-400' : 'text-red-500';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="px-4 py-2 ${color}">${log.method}</td>
+        <td class="px-4 py-2 ${color}"><a href="/logs/${log._id}" class="hover:underline">${log.endpoint}</a></td>
+        <td class="px-4 py-2 ${color}">${log.status}</td>
+        <td class="px-4 py-2 text-gray-200">${new Date(log.date).toLocaleString()}</td>
+        <td class="px-4 py-2"><a href="/logs/${log._id}" class="text-blue-400 hover:underline">Details</a></td>
+      `;
+      container.appendChild(tr);
     });
+    // Pagination info
+    const totalPages = Math.ceil(data.total / limit);
+    document.getElementById('page-info').textContent = `Page ${page} of ${totalPages}`;
+    document.getElementById('prev-btn').disabled = page <= 1;
+    document.getElementById('next-btn').disabled = page >= totalPages;
+  }
 
-    document.getElementById('page-info').textContent = `Page ${page} of ${Math.ceil(data.total / limit)}`;
-    document.getElementById('prev-btn').disabled = page === 1;
-    document.getElementById('next-btn').disabled = page * limit >= data.total;
-}
+  // Event hookups
+  document.getElementById('filter-endpoint').addEventListener('input', () => fetchLogs(1));
+  ['filter-date','filter-time','filter-status'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => fetchLogs(1));
+  });
+  document.getElementById('filter-clear').addEventListener('click', () => {
+    ['filter-endpoint','filter-date','filter-time','filter-status'].forEach(id => document.getElementById(id).value = '');
+    fetchLogs(1);
+  });
+  document.getElementById('prev-btn').addEventListener('click', () => fetchLogs(currentPage - 1));
+  document.getElementById('next-btn').addEventListener('click', () => fetchLogs(currentPage + 1));
 
-// Add onchange event listeners to the inputs
-document.querySelector('input[placeholder="Search for endpoint"]').addEventListener('change', () => fetchLogs(currentPage));
-document.querySelector('input[type="date"]').addEventListener('change', () => fetchLogs(currentPage));
-document.querySelector('input[type="time"]').addEventListener('change', () => fetchLogs(currentPage));
-document.querySelector('input[placeholder="request status"]').addEventListener('change', () => fetchLogs(currentPage));
-document.querySelector('input[placeholder="pagination number"]').addEventListener('change', () => {
-    currentPage = document.querySelector('input[placeholder="pagination number"]').value || 1;
-    fetchLogs(currentPage);
+  // Initial load
+  fetchLogs(1);
 });
-
-document.getElementById('prev-btn').addEventListener('click', () => {
-    if (currentPage > 1) {
-        currentPage--;
-        fetchLogs(currentPage);
-    }
-});
-
-document.getElementById('next-btn').addEventListener('click', () => {
-    currentPage++;
-    fetchLogs(currentPage);
-});
-
-document.querySelector('button').addEventListener('click', () => {
-    document.querySelector('input[type="date"]').value = '';
-    document.querySelector('input[type="time"]').value = '';
-    fetchLogs(currentPage);
-});
-
-fetchLogs(currentPage);

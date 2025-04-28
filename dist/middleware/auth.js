@@ -8,15 +8,21 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const jwtSecret = process.env.node_api_logger_jwtSecret || "your_secret_key";
 const verifyToken = (req, res, next) => {
     const token = req.cookies.token;
-    if (!token)
-        return res.status(401).json({ message: 'Unauthorized' });
+    const isApiRequest = req.originalUrl.startsWith('/logs/api');
+    if (!token) {
+        return isApiRequest
+            ? res.status(401).json({ message: 'Unauthorized' })
+            : res.redirect('/logs/login');
+    }
     try {
         const decoded = jsonwebtoken_1.default.verify(token, jwtSecret);
-        req.user = decoded; // Type assertion
+        req.user = decoded;
         next();
     }
     catch (error) {
-        res.status(401).json({ message: 'Invalid token' });
+        return isApiRequest
+            ? res.status(401).json({ message: 'Invalid token' })
+            : res.redirect('/logs/login');
     }
 };
 exports.verifyToken = verifyToken;

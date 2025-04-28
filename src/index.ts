@@ -5,6 +5,7 @@ import path from 'path';
 import apiRoutes from './routes/api';
 import authRoutes from './routes/auth';
 import { logMiddleware } from './middleware/log';
+import { verifyToken } from './middleware/auth';
 
 /**
  * Initializes and configures an Express logger for tracking API requests.
@@ -23,8 +24,8 @@ import { logMiddleware } from './middleware/log';
  * const app = express();
  * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', beginswith: ['/api'], specifics: ['/auth'] });
  */
-export const createExpressLogger = ({app, mongoUri,beginswith,specifics}:{
-    app:Application,mongoUri:string,beginswith?:string[],specifics?:string[]
+export const createExpressLogger = ({ app, mongoUri, beginswith, specifics }: {
+    app: Application, mongoUri: string, beginswith?: string[], specifics?: string[]
 }) => {
 
     mongoose.connect(mongoUri)
@@ -34,7 +35,7 @@ export const createExpressLogger = ({app, mongoUri,beginswith,specifics}:{
     app.use(cookieParser());
 
     // Middleware for logging
-    app.use(logMiddleware(beginswith,specifics));
+    app.use(logMiddleware(beginswith, specifics));
 
     // API and Auth Routes
     app.use('/logs/api', apiRoutes);
@@ -43,12 +44,17 @@ export const createExpressLogger = ({app, mongoUri,beginswith,specifics}:{
     // Serve static CSS files
     app.use('/styles', express.static(path.join(__dirname, '../src/views/styles')));
     //Js
-app.use('/js', express.static(path.join(__dirname, '../src/views/js')));
+    app.use('/js', express.static(path.join(__dirname, '../src/views/js')));
 
-    // Serve static HTML files
+    // Serve static HTML files (login unprotected)
     app.get('/logs/login', (req, res) => res.sendFile(path.join(__dirname, '../src/views/login.html')));
-    app.get('/logs', (req, res) => res.sendFile(path.join(__dirname, '../src/views/logs.html')));
-    app.get('/logs/:id', (req, res) => res.sendFile(path.join(__dirname, '../src/views/logDetails.html')));
+    // Dashboard HomePage (protected)
+    app.get('/logs', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../src/views/logs.html')));
+    app.get('/logs/home', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../src/views/home.html')));
+    // Settings Page (protected)
+    app.get('/logs/settings', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../src/views/settings.html')));
+    app.get('/logs/:id', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../src/views/logDetails.html')));
+
 };
 
-export const CreateNextLogger=()=>{}
+export const CreateNextLogger = () => { }

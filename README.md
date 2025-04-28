@@ -1,225 +1,176 @@
 # Node API Logs
 
-  
+A comprehensive API logging and monitoring system for Node.js + Express applications that tracks, analyzes, and visualizes API requests in real-time. Built with Node.js, Express, and MongoDB, this system provides detailed insights into your API's performance, errors, and usage patterns.
 
-Node API Logs is a library that allows Express.js developers to view req logs on their server without the need for any third-party services or payments. from req body, ip, res body,  duration, etc. The library currently only supports Express.js and requires a MongoDB URI. Supports for Nestjs and other frameworks will come later.
+> **Note**: Currently supports Node.js + Express applications only. Support for other frameworks (like NestJS) will be added in future releases.
 
-![enter image description here](https://i.ibb.co/vDjVLZT/Screenshot-2024-09-12-at-03-03-28.png)
-  
-![enter image description here](https://i.ibb.co/4mFf474/Screenshot-2024-09-12-at-03-03-53.png)
+![Login Screen](https://i.ibb.co/3y0tNx4j/Screenshot-2025-04-28-at-11-55-13-AM.png)
+![Dashboard](https://i.ibb.co/0RsK15rJ/Screenshot-2025-04-28-at-11-57-54-AM.png)
+![Logs View](https://i.ibb.co/9kNHwT8C/Screenshot-2025-04-28-at-12-00-01-PM.png)
+![Log Details](https://i.ibb.co/9fW9crT/Screenshot-2025-04-28-at-12-01-04-PM.png)
 
-![enter image description here](https://i.ibb.co/dmkCRp8/Screenshot-2024-09-12-at-03-06-52.png)
+## Prerequisites
 
+- Node.js (v14 or higher)
+- Express.js application
+- MongoDB database
 
 ## Features
 
-- View server logs in a user-friendly interface
+### 1. Real-time API Monitoring
 
-- Secure login system for accessing logs
+- Track all API requests in real-time
+- Monitor response times, status codes, and request/response bodies
+- Filter logs by endpoint, date, time, and status code
 
-- Simple user management (password reset and user addition through MongoDB)
+### 2. Comprehensive Dashboard
 
-- Easy integration with existing Express.js applications
+- Visual metrics for total requests, average response time, and error rates
+- Interactive charts showing status code trends
+- System resource monitoring (CPU, Memory, Uptime)
+- Top 5 slowest endpoints analysis
 
-- Save on specific route data
-- Filter logs with endpoint, time, date and status.
+### 3. Detailed Log Analysis
 
-  
+- View complete request and response details
+- Inspect headers and session logs
+- Copy request/response data with one click
+- Navigate through paginated log history
+
+### 4. Security Features
+
+- Role-based access control (Admin/Dev roles)
+- Secure authentication with JWT
+- Protected dashboard and logs access
+- Session management
 
 ## Installation
 
-You can install the library using npm or yarn:
+1. Install the package:
 
 ```bash
-
-npm  i  node-api-logs
-
-# or
-
-yarn  add  node-api-logs
-
+npm install api-logger
 ```
 
-  
+2. Configure your Express application:
 
-To use the library, you need to import the **createExpressLogger**
+```javascript
+const express = require("express");
+const app = express();
+const { createExpressLogger } = require("api-logger");
 
-  
-
-```bash
-import  {createExpressLogger}  from  "node-api-logs";
-
- createExpressLogger({app:app,mongoUri:process.env.MONGO_TEST_URI  ||  process.env.MONGO_URI||""});
-
-```
-
-Next,  provide your Express app instance along with a MongoDB URI.
-
-  You can make request for specific url and make to avoid some url.
-
- ```
- createExpressLogger({app:app,mongoUri:process.env.MONGO_TEST_URI  ||  process.env.MONGO_URI||"", beginswith:["/api"],specifics:["/api/v1/admin/info"]});
-
-
-// This function will only log and save all api requests to /api but avoid request to /api/v1/admin/info
-```
-  
-Here’s a basic example of how to use the library in your **index.ts file**:
-
-  
-
-```bash
-import  express, { Application, Request, Response } from  'express';
-import  cors  from  'cors';
-import  helmet  from  'helmet';
-import  dotenv  from  'dotenv';
-import  expressFileUpload  from  'express-fileupload';
-import  path  from  'path';
-import {createExpressLogger} from  "node-api-logs";
-
-// configurations
-
-dotenv.config();
-import './config/database';
-import './config/redis';
-
-import  AppRoutes  from  './modules/app/app.route';
-import { formatReq } from  './middlewares/helpers.middleware';
-import  logger  from  './config/logger';
-import  morgan  from  'morgan';
-import  morganMiddleware  from  './middlewares/morgan.middleware';
-
-  
-
-// Boot express
-const  app:  Application  =  express();
-const  port  =  process.env.PORT  ||  3000;
-const  base:  string  =  process.env.base_url  ??  '/staging/api/v1';
-
-  
-
-// middlewares
-app.use(cors());
-app.use(helmet());
-app.use(expressFileUpload({ createParentPath:  true, useTempFiles:  true }));
-app.use(express.urlencoded({ extended:  false }));
-
-app.use(express.json());
-app.use('/docs', express.static(path.join(__dirname, 'docs')));
-app.use(formatReq);
-app.use(morganMiddleware);
-
-#create logger
-createExpressLogger({app:app,mongoUri:process.env.MONGO_TEST_URI  ||  process.env.MONGO_URI||""});
-
-// Application routing
-
-app.get('/', (req:  Request, res:  Response) => {
-res.status(200).send({ data:  'BACKEND Application' });
+// Important: Place other middleware before createExpressLogger
+app.use(function (req, res, next) {
+	logger.info(`[${req.method}] ${req.baseUrl}${req.url}`);
+	next();
 });
 
-app.use(base, AppRoutes);
-
-// Start server
-app.listen(port, () =>  logger.info(`Server is listening on port ${port}!`));
-
-  
-// Handle unhandled promise rejections and exceptions
-process.on('unhandledRejection', (err:  any) => {
-logger.error('Unhandled Rejection', err);
-
-});
-
-process.on('uncaughtException', (err:  any) => {
-logger.error(err.message, err);
-
+// Initialize the logger after other middleware
+createExpressLogger({
+	app,
+	mongoUri: "mongodb://localhost:27017/your-database",
+	beginswith: ["/api"], // Optional: Only log requests starting with these paths
+	specifics: ["/auth"], // Optional: Exclude these paths from logging
 });
 ```
 
-To access the logs, visit:
+## Usage
 
-```bash
-http://localhost:PORT/logs/login
+### Accessing the Dashboard
+
+1. Navigate to `/logs/login` in your browser
+2. Log in with your credentials:
+   - First user to log in becomes an admin
+   - Subsequent users are assigned dev role
+   - Password is set on first login
+
+### Dashboard Features
+
+#### Home Page (`/logs/home`)
+
+- View real-time metrics and system stats
+- Monitor API performance trends
+- Track system resource usage
+- Identify slow endpoints
+
+#### Logs Page (`/logs`)
+
+- Browse all API requests
+- Filter logs by:
+  - Endpoint
+  - Date and time
+  - Status code
+- View paginated results
+- Sort and search through logs
+
+#### Log Details (`/logs/:id`)
+
+- View complete request details
+- Inspect request and response bodies
+- Check headers and session logs
+- Copy data for debugging
+
+#### Settings (`/logs/settings`)
+
+- Manage your account
+- Log out securely
+
+## Configuration Options
+
+The `createExpressLogger` function accepts the following parameters:
+
+- `app`: Your Express application instance
+- `mongoUri`: MongoDB connection string
+- `beginswith`: Array of path prefixes to log (optional)
+- `specifics`: Array of paths to exclude from logging (optional)
+
+## Troubleshooting
+
+### Middleware Ordering
+
+The order of middleware in Express is crucial. If you're using other logging middleware, make sure to place it before `createExpressLogger`. For example:
+
+```javascript
+// Correct order:
+app.use(function (req, res, next) {
+	logger.info(`[${req.method}] ${req.baseUrl}${req.url}`);
+	next();
+});
+
+createExpressLogger({
+	/* config */
+});
+
+// Incorrect order (may cause issues):
+createExpressLogger({
+	/* config */
+});
+app.use(function (req, res, next) {
+	logger.info(`[${req.method}] ${req.baseUrl}${req.url}`);
+	next();
+});
 ```
 
-### User Management
+## Security
 
-To change a user's password:
+- All dashboard routes are protected by JWT authentication
+- First-time login creates an admin account
+- Subsequent logins create dev accounts
+- Session tokens expire after 1 hour
+- Secure cookie-based authentication
 
-  
+## Roadmap
 
-1. Go to [bcrypt-generator](https://bcrypt-generator.com) to generate a new password.
+- [ ] Add support for NestJS applications
+- [ ] Add support for other Node.js frameworks
+- [ ] Implement real-time WebSocket updates
+- [ ] Add custom alert configurations
+- [ ] Support for multiple database types
 
-2. Manually update the user's password in the MongoDB database.
+## Contributing
 
-  
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### To add a new user:
+## License
 
-  
-
-1. Go to your `users` collection in MongoDB.
-
-2. Click on **Add Data** and select **Insert Document.**
-
-3. Click **Insert** and then edit the new document to add the user's email.
-
-4. Once the user visits `http://localhost:PORT/logs/login` and inputs their email and password, the password will be automatically set for them.
-
-  
-
-### To remove a user:
-
-  
-
-Simply delete the user's record from the database.
-
-  
-
-### Contributing
-
-  
-
-Contributions are welcome! If you'd like to contribute, please follow these steps:
-
-  
-
-1. Fork the repository.
-
-2. Create a new branch (`git checkout -b feature-branch`).
-
-3. Make your changes.
-
-4. Commit your changes (`git commit -m 'Add feature'`).
-
-5. Push to the branch (`git push origin feature-branch`).
-
-6. Open a pull request.
-
-  
-
-Please make sure to update tests as appropriate.
-
-  
-
-### Contact
-
-  
-
-For issues or questions, feel free to contact me at:
-
-  
-
-- Email: [paulambrose5002@gmail.com](mailto:paulambrose5002@gmail.com)
-
-- GitHub: [Ugochukwudev](https://github.com/ugochukwudev)
-- Twitter [Impulsejs](https://x.com/impulsejs)
-- Blog [Techgix] (https://techgix.xyz)
-
-  
-
-### License
-
-  
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.

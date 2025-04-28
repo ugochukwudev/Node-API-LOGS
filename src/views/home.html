@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - API Logs</title>
+  <link rel="stylesheet" href="/styles/tailwind.css" />
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+  <!-- Sidebar (Desktop) -->
+  <aside class="hidden md:flex md:flex-col w-64 bg-gray-800 text-gray-100">
+    <div class="h-16 flex items-center justify-center border-b border-gray-700 text-xl font-bold">
+      API Logs
+    </div>
+    <nav class="flex-1 p-4 space-y-2">
+      <a href="/logs/home" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium bg-gray-700">Dashboard</a>
+      <a href="/logs" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Logs</a>
+      <a href="/logs/settings" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Settings</a>
+    </nav>
+  </aside>
+
+  <!-- Mobile Header -->
+  <header class="md:hidden w-full bg-gray-800 text-gray-100 p-4 flex justify-between items-center">
+    <span class="text-lg font-bold">API Logs</span>
+    <!-- Placeholder for menu toggle -->
+    <span>&#9776;</span>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6">
+    <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Total Requests Card -->
+      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
+        <div class="flex items-center mb-2">
+          <span class="text-sm text-gray-400">Total Requests</span>
+          <details class="relative ml-2">
+            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
+            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 whitespace-pre-wrap z-10">Total number of API requests received.</div>
+          </details>
+        </div>
+        <div id="total-requests" class="text-3xl font-semibold h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
+      </div>
+      <!-- Avg Response Time Card -->
+      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
+        <div class="flex items-center mb-2">
+          <span class="text-sm text-gray-400">Avg Response Time</span>
+          <details class="relative ml-2">
+            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
+            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Average time the server takes to respond (in seconds).</div>
+          </details>
+        </div>
+        <div id="avg-response" class="text-3xl font-semibold h-8 w-28 bg-gray-700 rounded animate-pulse"></div>
+      </div>
+      <!-- Error Requests Card -->
+      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
+        <div class="flex items-center mb-2">
+          <span class="text-sm text-gray-400">Error Requests</span>
+          <details class="relative ml-2">
+            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
+            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Number of requests resulting in error codes (>=400).</div>
+          </details>
+        </div>
+        <div id="error-count" class="text-3xl font-semibold h-8 w-16 bg-gray-700 rounded animate-pulse"></div>
+      </div>
+      <!-- Slowest Endpoints Card -->
+      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
+        <div class="flex items-center mb-2">
+          <span class="text-sm text-gray-400">Slowest Endpoints</span>
+          <!-- Time window selector -->
+          <select id="slow-window" class="ml-auto bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none">
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="12h">12 Hours</option>
+            <option value="1d" selected>1 Day</option>
+            <option value="7d">7 Days</option>
+            <option value="1m">1 Month</option>
+            <option value="3m">3 Months</option>
+            <option value="6m">6 Months</option>
+            <option value="1y">1 Year</option>
+          </select>
+          <details class="relative ml-2">
+            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
+            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Top endpoints by average response time.</div>
+          </details>
+        </div>
+        <ul id="slow-list" class="mt-2 list-disc list-inside text-sm text-gray-300 space-y-1 h-16 overflow-y-auto animate-pulse">
+          <!-- list items injected here -->
+        </ul>
+      </div>
+    </div>
+
+    <!-- Status Trends Line Chart -->
+    <div class="mt-8 bg-gray-800 p-4 rounded shadow h-64 overflow-hidden">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-lg font-semibold text-gray-200 flex items-center">
+          Status Trends
+          <details class="relative ml-2">
+            <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
+            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Counts of 2xx, 4xx, and 5xx responses over time.</div>
+          </details>
+        </h2>
+        <select id="trend-window" class="bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none">
+          <option value="1h">1 Hour</option>
+          <option value="6h">6 Hours</option>
+          <option value="12h">12 Hours</option>
+          <option value="1d">1 Day</option>
+          <option value="7d" selected>7 Days</option>
+          <option value="1m">1 Month</option>
+          <option value="3m">3 Months</option>
+          <option value="6m">6 Months</option>
+          <option value="1y">1 Year</option>
+        </select>
+      </div>
+      <div class="relative h-full">
+        <canvas id="trendsChart" class="absolute inset-0 w-full h-full"></canvas>
+      </div>
+    </div>
+    <!-- System Stats -->
+    <div class="mt-8 bg-gray-800 p-4 rounded shadow">
+      <h2 class="text-lg font-semibold mb-4">System Resources</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div>
+          <div class="flex items-center text-sm text-gray-400">
+            <span>Memory Usage</span>
+            <details class="relative ml-2">
+              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
+              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Percentage of system RAM currently in use.</div>
+            </details>
+          </div>
+          <div id="mem-usage" class="text-2xl font-semibold text-gray-100">--%</div>
+        </div>
+        <div>
+          <div class="flex items-center text-sm text-gray-400">
+            <span>CPU Load Avg (1,5,15)</span>
+            <details class="relative ml-2">
+              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
+              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">System load averages over 1, 5, and 15 minutes.</div>
+            </details>
+          </div>
+          <div id="cpu-load" class="text-2xl font-semibold text-gray-100">--</div>
+        </div>
+        <div>
+          <div class="flex items-center text-sm text-gray-400">
+            <span>Uptime</span>
+            <details class="relative ml-2">
+              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
+              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Total time since the system last started (seconds).</div>
+            </details>
+          </div>
+          <div id="sys-uptime" class="text-2xl font-semibold text-gray-100">--s</div>
+        </div>
+        <div>
+          <div class="flex items-center text-sm text-gray-400">
+            <span>Process RSS</span>
+            <details class="relative ml-2">
+              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
+              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Resident Set Size: memory allocated for the process (in MB).</div>
+            </details>
+          </div>
+          <div id="proc-rss" class="text-2xl font-semibold text-gray-100">-- MB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Slow Endpoints Table -->
+    <div class="mt-8 bg-gray-800 p-4 rounded shadow overflow-x-auto">
+      <h2 class="text-lg font-semibold mb-4">Top 5 Slowest Endpoints</h2>
+      <table class="min-w-full border-collapse">
+        <thead>
+          <tr>
+            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Endpoint</th>
+            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Avg Time</th>
+            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Hits</th>
+          </tr>
+        </thead>
+        <tbody id="slow-endpoints-body">
+          <!-- rows injected here -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Chart.js (local) -->
+  <script src="/js/chart.umd.js"></script>
+  <script src="/js/home.js"></script>
+</body>
+</html> 

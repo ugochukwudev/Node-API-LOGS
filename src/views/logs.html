@@ -5,65 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Logs</title>
     <link rel="stylesheet" href="/styles/tailwind.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            border-radius: 16px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            border-radius: 16px;
-        }
-        th {
-            background-color: #000;
-            border-radius:16px;
-        }
-        .pagination {
-            margin: 20px 0;
-            text-align: center;
-        }
-        .pagination button {
-            margin: 0 2px;
-            padding: 5px 10px;
-        }
-    </style>
 </head>
-<body class="bg-black text-white p-6 flex flex-col gap-y-6">
-    <h1 class="text-white text-3xl text-center">API Logs</h1>
-    <div class="flex flex-col lg:flex-row  gap-y-4 gap-x-4">
-        <input class=" w-[90%] lg:w-[30%] p-4 rounded-lg text-base text-white bg-gray-700" placeholder="Search for endpoint" />
-        <input class=" w-[90%] lg:w-[10%] p-4 rounded-lg text-base text-white bg-gray-700" type="date" placeholder="Search logs by date" />
-        <input class=" w-[90%] lg:w-[10%] p-4 rounded-lg text-base text-white bg-gray-700" type="time"  />
-        <input class=" w-[90%] lg:w-[20%] p-4 rounded-lg text-base text-white bg-gray-700" type="text" placeholder="request status" />
-        <input class=" w-[90%] lg:w-[10%] p-4 rounded-lg text-base text-white bg-gray-700" type="text" placeholder="pagination number" />
-        <button class="bg-blue-600 rounded-lg py-2 px-4 active:opacity-60 transition-all duration-[100] ease-linear hover:opacity-85">Clear date and time</button>
-    </div>
-    <p class="text-red-500">click outside the input to initiate the filter or click enter</p>
-    <table id="logs-table">
-        <thead>
-            <tr>
-                <th>Method</th>
-                <th>Endpoint</th>
-                <th>Status</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody id="logs-container" class="px-6"></tbody>
-    </table>
-    <div class="pagination">
-        <button id="prev-btn" class="bg-blue-600 p-2 rounded-lg">Previous</button>
-        <span  class="bg-gray-500 px-2 py-2 rounded-lg" id="page-info"></span>
-        <button id="next-btn" class="bg-blue-600 p-2 rounded-lg">Next</button>
-    </div>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+    <!-- Sidebar (Desktop) -->
+    <aside class="hidden md:flex md:flex-col w-64 bg-gray-800 text-gray-100">
+        <div class="h-16 flex items-center justify-center border-b border-gray-700 text-xl font-bold">API Logs</div>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/logs/home" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Dashboard</a>
+            <a href="/logs" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium bg-gray-700">Logs</a>
+            <a href="/logs/settings" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Settings</a>
+            <!-- Future: <a href="/logs/settings" class="...">Settings</a> -->
+        </nav>
+    </aside>
 
-   
+    <!-- Mobile Header -->
+    <header class="md:hidden w-full bg-gray-800 text-gray-100 p-4 flex justify-between items-center">
+        <span class="text-lg font-bold">API Logs</span>
+        <!-- TODO: mobile menu toggle -->
+        <span>&#9776;</span>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto">
+        <h1 class="text-2xl font-bold mb-4">API Logs</h1>
+
+        <!-- Filters -->
+        <div class="mt-6 bg-gray-800 p-4 rounded shadow mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-6 gap-4">
+                <input id="filter-endpoint" type="text" placeholder="Search endpoint" class="col-span-2 px-4 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 placeholder-gray-400 focus:ring focus:ring-blue-500 focus:outline-none" />
+                <input id="filter-date" type="date" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:ring focus:ring-blue-500 focus:outline-none" />
+                <input id="filter-time" type="time" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:ring focus:ring-blue-500 focus:outline-none" />
+                <select id="filter-status" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:ring focus:ring-blue-500 focus:outline-none">
+                    <option value="">All Status</option>
+                    <option value="200">200 Success</option>
+                    <option value="400">400 Bad Request</option>
+                    <option value="401">401 Unauthorized</option>
+                    <option value="404">404 Not Found</option>
+                    <option value="500">500 Server Error</option>
+                </select>
+                <button id="filter-clear" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+            </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="bg-gray-800 p-4 rounded shadow overflow-x-auto">
+            <table id="logs-table" class="min-w-full table-auto text-gray-100">
+                <thead>
+                    <tr class="bg-gray-700 text-gray-300">
+                        <th class="px-4 py-2 text-left">Method</th>
+                        <th class="px-4 py-2 text-left">Endpoint</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                        <th class="px-4 py-2 text-left">Date & Time</th>
+                        <th class="px-4 py-2 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-container"></tbody>
+            </table>
+            <!-- Pagination -->
+            <div class="flex justify-between items-center mt-4 text-gray-200">
+                <button id="prev-btn" class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">Previous</button>
+                <span id="page-info"></span>
+                <button id="next-btn" class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">Next</button>
+            </div>
+        </div>
+    </main>
+
     <script src="/js/logs.js"></script>
-
 </body>
 </html>

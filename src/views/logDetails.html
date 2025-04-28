@@ -5,27 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log Details</title>
     <link rel="stylesheet" href="/styles/tailwind.css">
-    <script src="/js/json.js"></script>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        pre {
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
-            white-space: pre-wrap; /* Ensure text wraps */
-        }
-    </style>
 </head>
-<body>
-    <h1 class="text-2xl text-center">Log Details</h1>
-    <div id="json"></div>
-    <pre id="log-details-container"></pre>
-    
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+  <!-- Sidebar (Desktop) -->
+  <aside class="hidden md:flex md:flex-col w-64 bg-gray-800 text-gray-100">
+    <div class="h-16 flex items-center justify-center border-b border-gray-700 text-xl font-bold">API Logs</div>
+    <nav class="flex-1 p-4 space-y-2">
+      <a href="/logs/home" class="block px-4 py-2 rounded hover:bg-gray-700">Dashboard</a>
+      <a href="/logs" class="block px-4 py-2 rounded hover:bg-gray-700">Logs</a>
+      <a href="/logs/settings" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Settings</a>
+    </nav>
+  </aside>
+  <!-- Mobile Header -->
+  <header class="md:hidden w-full bg-gray-800 text-gray-100 p-4 flex justify-between items-center">
+    <span class="text-lg font-bold">API Logs</span>
+    <span>&#9776;</span>
+  </header>
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-auto">
+    <h1 class="text-2xl font-bold mb-4">Log Details</h1>
+    <div id="meta" class="mb-6"></div>
 
-    <script src="/js/logDetails.js"></script>
+    <details class="mb-4 bg-gray-800 rounded shadow">
+      <summary class="px-4 py-2 bg-gray-700 text-gray-200 flex justify-between items-center cursor-pointer">
+        Request Body
+        <button id="requestBodyCopyBtn" class="text-gray-400 hover:text-white">Copy</button>
+      </summary>
+      <pre id="requestBodyContent" class="p-4 text-gray-100 overflow-auto max-h-96"></pre>
+    </details>
 
+    <details class="mb-4 bg-gray-800 rounded shadow">
+      <summary class="px-4 py-2 bg-gray-700 text-gray-200 flex justify-between items-center cursor-pointer">
+        Response Body
+        <button id="responseBodyCopyBtn" class="text-gray-400 hover:text-white">Copy</button>
+      </summary>
+      <pre id="responseBodyContent" class="p-4 text-gray-100 overflow-auto max-h-96"></pre>
+    </details>
+
+    <details class="mb-4 bg-gray-800 rounded shadow">
+      <summary class="px-4 py-2 bg-gray-700 text-gray-200 flex justify-between items-center cursor-pointer">
+        Headers
+        <button id="headersCopyBtn" class="text-gray-400 hover:text-white">Copy</button>
+      </summary>
+      <pre id="headersContent" class="p-4 text-gray-100 overflow-auto max-h-96"></pre>
+    </details>
+
+    <details class="mb-4 bg-gray-800 rounded shadow">
+      <summary class="px-4 py-2 bg-gray-700 text-gray-200 flex justify-between items-center cursor-pointer">
+        Session Logs
+        <button id="sessionLogsCopyBtn" class="text-gray-400 hover:text-white">Copy</button>
+      </summary>
+      <pre id="sessionLogsContent" class="p-4 text-gray-100 overflow-auto max-h-96"></pre>
+    </details>
+
+    <button onclick="window.history.back()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Back</button>
+  </main>
+  <script src="/js/logDetails.js"></script>
 </body>
 </html>

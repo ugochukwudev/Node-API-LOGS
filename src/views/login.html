@@ -3,49 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - API Logs</title>
     <link rel="stylesheet" href="/styles/tailwind.css">
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        form {
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-            padding: 1em;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        input {
-            margin: 0.5em 0;
-            padding: 0.5em;
-            width: 100%;
-        }
-        button {
-            padding: 0.5em;
-            width: 100%;
-        }
-        .error {
-            color: red;
-        }
-    </style>
 </head>
-<body class="bg-black text-white">
-    <form id="login-form" class="flex flex-col gap-y-4 py-6">
-        <h1 class="text-2xl">Login</h1>
-        <div class="error" id="error-message"></div>
-        <input class=" p-2 bg-gray-400 rounded-lg placeholder:text-white" type="email" id="email" name="email" placeholder="Email" required>
-        <input  class=" p-2 bg-gray-400 rounded-lg placeholder:text-white" type="password" id="password" name="password" placeholder="Password" required>
-        <button class="bg-blue-600 rounded-lg px-2 py-4" id="login-btn" type="submit">Login</button>
-    </form>
+<body class="bg-gradient-to-br from-blue-900 to-gray-900 flex items-center justify-center min-h-screen p-8">
+    <div class="bg-gray-800 bg-opacity-80 backdrop-filter backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-md">
+        <h1 class="text-3xl font-bold text-white text-center mb-6">API Logs</h1>
+        <form id="login-form" class="space-y-6">
+            <div id="error-message" hidden class="bg-red-700 text-red-200 p-3 rounded text-sm mb-4"></div>
 
+            <!-- Email -->
+            <div class="relative">
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    class="w-full pl-10 pr-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                    placeholder="Email address"
+                />
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 11h18a2 2 0 002-2V7a2 2 0 00-2-2H3a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="relative">
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    class="w-full pl-10 pr-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                    placeholder="Password"
+                />
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm8-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Remember & Forgot -->
+            <div class="flex items-center justify-between text-sm text-gray-300">
+                <label class="inline-flex items-center">
+                    <input type="checkbox" class="rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700" />
+                    <span class="ml-2">Remember me</span>
+                </label>
+                <a href="#" class="text-blue-400 hover:underline">Forgot password?</a>
+            </div>
+
+            <!-- Submit -->
+            <button
+                type="submit"
+                id="login-btn"
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
+            >
+                Sign In
+            </button>
+        </form>
+
+        <p class="mt-6 text-center text-gray-300 text-sm">
+            Don't have an account? <a href="#" class="text-blue-400 hover:underline">Contact administrator</a>
+        </p>
+    </div>
     <script src="/js/login.js"></script>
 </body>
 </html>

@@ -34,6 +34,7 @@ const ApiLogSchema = new mongoose_1.Schema({
     headers: { type: mongoose_1.Schema.Types.Mixed, required: true },
     ip: { type: String, required: true },
     date: { type: Date, default: Date.now },
+    sessionLogs: { type: [mongoose_1.Schema.Types.Mixed], default: [] },
 });
 const ApiLog = mongoose_1.default.model('ApiLog', ApiLogSchema);
 exports.default = ApiLog;

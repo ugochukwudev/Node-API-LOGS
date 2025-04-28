@@ -14,57 +14,102 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logMiddleware = void 0;
 const apilogs_model_1 = __importDefault(require("../models/apilogs.model"));
-const logMiddleware = (beginswith, specifics) => (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const startTime = Date.now();
-    // Capture the original send function to intercept the response body
-    const originalSend = res.send;
-    let responseBody = {};
-    res.send = function (body) {
-        try {
-            responseBody = typeof body === 'string' ? JSON.parse(body) : body; // Parse JSON if body is a string
+const async_hooks_1 = require("async_hooks");
+// Use AsyncLocalStorage to hold sessionLogs per request
+const asyncLocalStorage = new async_hooks_1.AsyncLocalStorage();
+// Dynamically patch Winston loggers so all Winston logs go into sessionLogs for the current request
+try {
+    // @ts-ignore: optional Winston
+    const winston = require('winston');
+    if (winston.Logger && winston.Logger.prototype.log) {
+        const origLogMethod = winston.Logger.prototype.log;
+        winston.Logger.prototype.log = function (levelOrInfo, msg, ...meta) {
+            const store = asyncLocalStorage.getStore();
+            if (store) {
+                let level = typeof levelOrInfo === 'string' ? levelOrInfo : levelOrInfo.level;
+                let message = typeof levelOrInfo === 'object' ? levelOrInfo.message : msg;
+                let rest = meta.length ? ' ' + JSON.stringify(meta) : '';
+                store.sessionLogs.push(`[WINSTON] [${level}] ${message}${rest}`);
+            }
+            return origLogMethod.apply(this, arguments);
+        };
+    }
+    // Patch default logger methods like winston.info(), winston.error(), etc.
+    ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly', 'log'].forEach(fn => {
+        if (typeof winston[fn] === 'function') {
+            const origFn = winston[fn];
+            winston[fn] = function (...args) {
+                const store = asyncLocalStorage.getStore();
+                if (store)
+                    store.sessionLogs.push(`[WINSTON] [${fn}] ${args.join(' ')}`);
+                return origFn.apply(winston, args);
+            };
         }
-        catch (error) {
-            responseBody = body; // Fallback if parsing fails
-        }
-        return originalSend.apply(res, [body]);
-    };
-    // If beginswith is defined, skip logging if the URL does NOT start with any of the given prefixes
-    if (beginswith && !beginswith.some(prefix => req.originalUrl.startsWith(prefix))) {
-        return next(); // Skip logging and continue to the next middleware
-    }
-    // Skip logging if the request URL matches any specific URL
-    if (specifics && specifics.includes(req.originalUrl)) {
-        return next(); // Skip logging
-    }
-    // Skip logging for /logs, /styles/*.css, and /js/*.js
-    const excludedPaths = [
-        '/logs',
-        '/logs/login',
-        '/logs/:id',
-        '/logs/api',
-        '/logs/auth',
-        '/styles/',
-        '/js/'
-    ];
-    if (excludedPaths.some(path => req.originalUrl.startsWith(path))) {
-        return next();
-    }
-    res.on('finish', () => __awaiter(void 0, void 0, void 0, function* () {
-        const duration = Date.now() - startTime;
-        const log = new apilogs_model_1.default({
-            method: req.method,
-            endpoint: req.originalUrl,
-            status: res.statusCode,
-            responseTime: duration,
-            requestBody: req.body || {},
-            responseBody: responseBody || {},
-            headers: req.headers,
-            ip: req.ip || req.socket.remoteAddress,
-            date: new Date(),
+    });
+}
+catch (_a) {
+    // Winston not present or patch failed - silently ignore
+}
+const logMiddleware = (beginswith, specifics) => (req, res, next) => {
+    // Run the rest of the middleware inside AsyncLocalStorage context
+    asyncLocalStorage.run({ sessionLogs: [] }, () => {
+        const startTime = Date.now();
+        const originalSend = res.send;
+        let responseBody = {};
+        res.send = function (body) {
+            try {
+                responseBody = typeof body === 'string' ? JSON.parse(body) : body;
+            }
+            catch (_a) {
+                responseBody = body;
+            }
+            return originalSend.apply(res, [body]);
+        };
+        // Filter skipped routes
+        if (beginswith && !beginswith.some(p => req.originalUrl.startsWith(p)))
+            return next();
+        if (specifics && specifics.includes(req.originalUrl))
+            return next();
+        const excluded = ['/logs', '/logs/login', '/logs/:id', '/logs/api', '/logs/auth', '/styles/', '/js/'];
+        if (excluded.some(p => req.originalUrl.startsWith(p)))
+            return next();
+        // Monkey-patch console and process streams to capture logs and any stdout/stderr writes
+        const store = asyncLocalStorage.getStore();
+        const origLog = console.log, origErr = console.error, origWarn = console.warn;
+        const origStdoutWrite = process.stdout.write.bind(process.stdout);
+        const origStderrWrite = process.stderr.write.bind(process.stderr);
+        console.log = (...args) => { store.sessionLogs.push('[LOG] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origLog(...args); };
+        console.error = (...args) => { store.sessionLogs.push('[ERROR] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origErr(...args); };
+        console.warn = (...args) => { store.sessionLogs.push('[WARN] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origWarn(...args); };
+        process.stdout.write = ((chunk, encoding, cb) => {
+            store.sessionLogs.push('[STDOUT] ' + chunk.toString().trim());
+            return origStdoutWrite(chunk, encoding, cb);
         });
-        yield log.save();
-    }));
-    next();
-});
+        process.stderr.write = ((chunk, encoding, cb) => {
+            store.sessionLogs.push('[STDERR] ' + chunk.toString().trim());
+            return origStderrWrite(chunk, encoding, cb);
+        });
+        // On response finish, save log including sessionLogs
+        res.on('finish', () => __awaiter(void 0, void 0, void 0, function* () {
+            const duration = Date.now() - startTime;
+            const logEntry = new apilogs_model_1.default({ method: req.method, endpoint: req.originalUrl, status: res.statusCode, responseTime: duration, requestBody: req.body || {}, responseBody: responseBody || {}, headers: req.headers, ip: req.ip || req.socket.remoteAddress, date: new Date(), sessionLogs: store.sessionLogs });
+            try {
+                yield logEntry.save();
+            }
+            catch (e) {
+                origErr('Failed to save API log:', e);
+            }
+            finally {
+                console.log = origLog;
+                console.error = origErr;
+                console.warn = origWarn;
+                // Restore process streams
+                process.stdout.write = origStdoutWrite;
+                process.stderr.write = origStderrWrite;
+            }
+        }));
+        next();
+    });
+};
 exports.logMiddleware = logMiddleware;
 //# sourceMappingURL=log.js.map

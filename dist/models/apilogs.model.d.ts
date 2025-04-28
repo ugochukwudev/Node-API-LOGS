@@ -9,6 +9,7 @@ export interface IApiLog extends Document {
     headers: any;
     ip: string;
     date: Date;
+    sessionLogs: any[];
 }
 declare const ApiLog: mongoose.Model<IApiLog, {}, {}, {}, mongoose.Document<unknown, {}, IApiLog> & IApiLog & Required<{
     _id: unknown;

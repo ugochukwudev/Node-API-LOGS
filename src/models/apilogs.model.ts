@@ -10,6 +10,7 @@ export interface IApiLog extends Document {
     headers: any;
     ip: string;
     date: Date;
+    sessionLogs: any[];
 }
 
 const ApiLogSchema: Schema = new Schema({
@@ -22,6 +23,7 @@ const ApiLogSchema: Schema = new Schema({
     headers: { type: Schema.Types.Mixed, required: true },
     ip: { type: String, required: true },
     date: { type: Date, default: Date.now },
+    sessionLogs: { type: [Schema.Types.Mixed], default: [] },
 });
 
 const ApiLog = mongoose.model<IApiLog>('ApiLog', ApiLogSchema);
