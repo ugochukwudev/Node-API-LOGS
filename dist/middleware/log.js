@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -89,25 +80,30 @@ const logMiddleware = (beginswith, specifics) => (req, res, next) => {
             store.sessionLogs.push('[STDERR] ' + chunk.toString().trim());
             return origStderrWrite(chunk, encoding, cb);
         });
-        // On response finish, save log including sessionLogs
-        res.on('finish', () => __awaiter(void 0, void 0, void 0, function* () {
+        // On response finish, save log including sessionLogs asynchronously
+        res.on('finish', () => {
             const duration = Date.now() - startTime;
-            const logEntry = new apilogs_model_1.default({ method: req.method, endpoint: req.originalUrl, status: res.statusCode, responseTime: duration, requestBody: req.body || {}, responseBody: responseBody || {}, headers: req.headers, ip: req.ip || req.socket.remoteAddress, date: new Date(), sessionLogs: store.sessionLogs });
-            try {
-                yield logEntry.save();
-            }
-            catch (e) {
-                origErr('Failed to save API log:', e);
-            }
-            finally {
-                console.log = origLog;
-                console.error = origErr;
-                console.warn = origWarn;
-                // Restore process streams
-                process.stdout.write = origStdoutWrite;
-                process.stderr.write = origStderrWrite;
-            }
-        }));
+            const logEntry = new apilogs_model_1.default({
+                method: req.method,
+                endpoint: req.originalUrl,
+                status: res.statusCode,
+                responseTime: duration,
+                requestBody: req.body || {},
+                responseBody: responseBody || {},
+                headers: req.headers,
+                ip: req.ip || req.socket.remoteAddress,
+                date: new Date(),
+                sessionLogs: store.sessionLogs
+            });
+            // Save asynchronously without blocking the response
+            logEntry.save().catch(e => origErr('Failed to save API log:', e));
+            // Restore console methods immediately after response
+            console.log = origLog;
+            console.error = origErr;
+            console.warn = origWarn;
+            process.stdout.write = origStdoutWrite;
+            process.stderr.write = origStderrWrite;
+        });
         next();
     });
 };

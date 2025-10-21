@@ -1,3 +1,158 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* Custom modern dark theme styles */
+@layer base {
+  * {
+    @apply border-gray-700;
+  }
+  
+  body {
+    @apply bg-slate-950 text-slate-100;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  /* Modern card styles */
+  .card {
+    @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl shadow-2xl;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.4) 100%);
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-500/30;
+  }
+  
+  /* Modern button styles */
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-blue-500/25;
+  }
+  
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 hover:border-slate-500 font-medium px-6 py-3 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-danger {
+    @apply bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-red-500/25;
+  }
+  
+  /* Modern input styles */
+  .input-modern {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200;
+  }
+  
+  /* Modern sidebar styles */
+  .sidebar {
+    @apply bg-slate-900/95 backdrop-blur-sm border-r border-slate-800;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  }
+  
+  .nav-link {
+    @apply flex items-center space-x-4 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-all duration-200 font-medium;
+  }
+  
+  .nav-link.active {
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25;
+  }
+  
+  /* Metric card styles */
+  .metric-card {
+    @apply card card-hover p-8 relative overflow-hidden;
+  }
+  
+  .metric-card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500;
+  }
+  
+  .metric-value {
+    @apply text-3xl font-bold text-white mb-2;
+  }
+  
+  .metric-label {
+    @apply text-sm text-slate-400 font-medium;
+  }
+  
+  /* Status indicators */
+  .status-success {
+    @apply text-emerald-400;
+  }
+  
+  .status-warning {
+    @apply text-amber-400;
+  }
+  
+  .status-error {
+    @apply text-red-400;
+  }
+  
+  .status-info {
+    @apply text-blue-400;
+  }
+  
+  /* Modern table styles */
+  .table-modern {
+    @apply w-full border-collapse;
+  }
+  
+  .table-modern th {
+    @apply bg-slate-800/50 text-slate-300 font-semibold px-8 py-6 text-left border-b border-slate-700;
+  }
+  
+  .table-modern td {
+    @apply px-8 py-6 border-b border-slate-800/50 text-slate-200;
+  }
+  
+  .table-modern tbody tr:hover {
+    @apply bg-slate-800/30;
+  }
+  
+  /* Chart container */
+  .chart-container {
+    @apply card p-8 relative;
+  }
+  
+  /* Slow endpoints list styling */
+  .slow-endpoints-list {
+    @apply space-y-4 max-h-64 overflow-y-auto px-4 py-2;
+  }
+  
+  .slow-endpoints-list li {
+    @apply px-4 py-3 bg-slate-800/30 rounded-lg border border-slate-700/50 hover:bg-slate-800/50 transition-colors duration-200;
+  }
+  
+  /* User list styling */
+  .user-list-item {
+    @apply bg-slate-800/50 rounded-lg p-6 border border-slate-700/50 hover:bg-slate-800/70 transition-colors duration-200;
+  }
+  
+  /* Loading animations */
+  .loading-pulse {
+    @apply animate-pulse bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 bg-[length:200%_100%];
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-800;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+} 

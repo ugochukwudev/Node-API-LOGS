@@ -13,4 +13,3 @@ router.post('/add-user', auth_2.verifyToken, auth_1.addUser);
 router.get('/users', auth_2.verifyToken, auth_1.getUsers);
 router.delete('/users/:userId', auth_2.verifyToken, auth_1.removeUser);
 exports.default = router;
-//# sourceMappingURL=auth.js.map

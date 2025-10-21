@@ -1,21 +1,22 @@
-import { Request, Response } from 'express';
-import ApiLog from '../models/apilogs.model';
-import os from 'os';
-
-export const getLogs = async (req: Request, res: Response) => {
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getSlowEndpoints = exports.getStatusTrends = exports.getSystemStats = exports.getStatusDistribution = exports.getMetrics = exports.getLogById = exports.getLogs = void 0;
+const apilogs_model_1 = __importDefault(require("../models/apilogs.model"));
+const os_1 = __importDefault(require("os"));
+const getLogs = async (req, res) => {
     const { page = 1, limit = 20, endpoint, date, time, status } = req.query;
-    const filters: any = {};
-
+    const filters = {};
     // Add default date filter to limit results (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     filters.date = { $gte: thirtyDaysAgo };
-
     // Optimize endpoint search - only if provided and meaningful
     if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
         filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
     }
-
     // Date filtering
     if (date && typeof date === 'string') {
         const start = new Date(date);
@@ -23,7 +24,6 @@ export const getLogs = async (req: Request, res: Response) => {
         end.setDate(end.getDate() + 1);
         filters.date = { $gte: start, $lt: end };
     }
-
     // Time filtering (only if date is also provided)
     if (time && date && typeof time === 'string' && typeof date === 'string') {
         const [hours, minutes] = time.split(':');
@@ -33,19 +33,16 @@ export const getLogs = async (req: Request, res: Response) => {
         endTime.setMinutes(endTime.getMinutes() + 59);
         filters.date = { $gte: startTime, $lt: endTime };
     }
-
     // Status filtering
     if (status && typeof status === 'string') {
         filters.status = parseInt(status);
     }
-
     try {
         // Strict limits for performance
         const maxLimit = Math.min(+limit, 50);
         const maxPage = Math.min(+page, 100); // Prevent deep pagination
-
         // Use lean() for better performance and projection
-        const logs = await ApiLog.find(filters, {
+        const logs = await apilogs_model_1.default.find(filters, {
             method: 1,
             endpoint: 1,
             status: 1,
@@ -58,37 +55,33 @@ export const getLogs = async (req: Request, res: Response) => {
             .limit(maxLimit)
             .sort({ date: -1 })
             .hint({ date: -1 }); // Force index usage
-
         // Get total count with same filters but limit for performance
-        const total = await ApiLog.countDocuments(filters).maxTimeMS(5000); // 5 second timeout
-
+        const total = await apilogs_model_1.default.countDocuments(filters).maxTimeMS(5000); // 5 second timeout
         res.json({ logs, total });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('getLogs error:', error);
         res.status(500).json({ message: 'Server error: ' + error });
     }
 };
-
-
-export const getLogById = async (req: Request, res: Response) => {
+exports.getLogs = getLogs;
+const getLogById = async (req, res) => {
     const { id } = req.params;
-
-
     try {
-        const log = await ApiLog.findById(id);
-        if (!log) return res.status(404).json({ message: 'Log not found' });
-
+        const log = await apilogs_model_1.default.findById(id);
+        if (!log)
+            return res.status(404).json({ message: 'Log not found' });
         res.json({ log });
-    } catch (error) {
+    }
+    catch (error) {
         res.status(500).json({ message: `Server error:${error}` });
     }
 };
-
-export const getMetrics = async (req: Request, res: Response) => {
+exports.getLogById = getLogById;
+const getMetrics = async (req, res) => {
     try {
         // Get time range from query parameter
-        const timeRange = req.query.timeRange as string || '24h';
-
+        const timeRange = req.query.timeRange || '24h';
         // Calculate date based on time range
         let startDate = new Date();
         switch (timeRange) {
@@ -107,124 +100,108 @@ export const getMetrics = async (req: Request, res: Response) => {
             default:
                 startDate.setHours(startDate.getHours() - 24);
         }
-
         // Run all queries in parallel with time limits
-        const [
-            totalRequests,
-            avgResult,
-            slowEndpoints,
-            errorCount
-        ] = await Promise.all([
+        const [totalRequests, avgResult, slowEndpoints, errorCount] = await Promise.all([
             // Total requests
-            ApiLog.countDocuments({ date: { $gte: startDate } }).maxTimeMS(3000),
-
+            apilogs_model_1.default.countDocuments({ date: { $gte: startDate } }).maxTimeMS(3000),
             // Average response time
-            ApiLog.aggregate([
+            apilogs_model_1.default.aggregate([
                 { $match: { date: { $gte: startDate } } },
                 { $group: { _id: null, avgResponseTime: { $avg: '$responseTime' } } }
             ]).option({ maxTimeMS: 3000 }),
-
             // Top 5 slowest endpoints
-            ApiLog.aggregate([
+            apilogs_model_1.default.aggregate([
                 { $match: { date: { $gte: startDate } } },
                 { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
                 { $match: { count: { $gte: 3 } } }, // Only endpoints with 3+ requests
                 { $sort: { avgTime: -1 } },
                 { $limit: 5 }
             ]).option({ maxTimeMS: 3000 }),
-
             // Error count
-            ApiLog.countDocuments({
+            apilogs_model_1.default.countDocuments({
                 date: { $gte: startDate },
                 status: { $gte: 400 }
             }).maxTimeMS(3000)
         ]);
-
         res.json({
             totalRequests,
             avgResponseTime: avgResult[0]?.avgResponseTime || 0,
             slowEndpoints,
             errorCount
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('getMetrics error:', error);
         res.status(500).json({ message: 'Error computing metrics', error });
     }
 };
-
+exports.getMetrics = getMetrics;
 // Controller: Distribution of requests by status code
-export const getStatusDistribution = async (req: Request, res: Response) => {
+const getStatusDistribution = async (req, res) => {
     try {
         // Limit to last 7 days for performance
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const filters: any = { date: { $gte: sevenDaysAgo } };
-
+        const filters = { date: { $gte: sevenDaysAgo } };
         // Apply filters from query params
         const { endpoint, date, time, status } = req.query;
-
         if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
             filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
         }
-
         if (date && typeof date === 'string') {
             const start = new Date(date);
             const end = new Date(start);
             end.setDate(end.getDate() + 1);
             filters.date = { $gte: start, $lt: end };
         }
-
         if (time && typeof time === 'string' && date) {
             const [hours, minutes] = time.split(':');
-            const startTime = new Date(date as string);
+            const startTime = new Date(date);
             startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
             const endTime = new Date(startTime);
             endTime.setMinutes(endTime.getMinutes() + 59);
             filters.date = { $gte: startTime, $lt: endTime };
         }
-
         if (status && typeof status === 'string') {
             filters.status = parseInt(status, 10);
         }
-
-        const distribution = await ApiLog.aggregate([
+        const distribution = await apilogs_model_1.default.aggregate([
             { $match: filters },
             { $group: { _id: '$status', count: { $sum: 1 } } },
             { $sort: { _id: 1 } }
         ]).option({ maxTimeMS: 3000 }); // 3 second timeout
-
         res.json({ distribution });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('getStatusDistribution error:', error);
         res.status(500).json({ message: 'Error computing distribution', error });
     }
 };
-
+exports.getStatusDistribution = getStatusDistribution;
 // Controller: System resource statistics
-export const getSystemStats = async (req: Request, res: Response) => {
+const getSystemStats = async (req, res) => {
     try {
-        const totalMem = os.totalmem();
-        const freeMem = os.freemem();
+        const totalMem = os_1.default.totalmem();
+        const freeMem = os_1.default.freemem();
         const usedMem = totalMem - freeMem;
         const memUsage = (usedMem / totalMem) * 100;
-        const loadAvg = os.loadavg();
+        const loadAvg = os_1.default.loadavg();
         const uptime = process.uptime();
         const procMem = process.memoryUsage();
         const procMemPercent = (procMem.rss / totalMem) * 100;
-
         res.json({ totalMem, freeMem, usedMem, memUsage, loadAvg, uptime, procMem, procMemPercent });
-    } catch (error) {
+    }
+    catch (error) {
         res.status(500).json({ message: 'Error computing system stats', error });
     }
 };
-
+exports.getSystemStats = getSystemStats;
 // Controller: Status code trends over last 7 days
-export const getStatusTrends = async (req: Request, res: Response) => {
+const getStatusTrends = async (req, res) => {
     try {
         // Determine time window from query param (default 7 days)
-        const win = (req.query.window as string) || '7d';
-        const mapWindow: Record<string, number> = {
+        const win = req.query.window || '7d';
+        const mapWindow = {
             '1h': 1000 * 60 * 60,
             '6h': 1000 * 60 * 60 * 6,
             '12h': 1000 * 60 * 60 * 12,
@@ -238,9 +215,8 @@ export const getStatusTrends = async (req: Request, res: Response) => {
         const now = new Date();
         const diff = mapWindow[win] ?? mapWindow['7d'];
         const start = new Date(now.getTime() - diff);
-
         // Aggregate by day and status category
-        const result = await ApiLog.aggregate([
+        const result = await apilogs_model_1.default.aggregate([
             { $match: { date: { $gte: start } } },
             {
                 $project: {
@@ -256,9 +232,8 @@ export const getStatusTrends = async (req: Request, res: Response) => {
             },
             { $sort: { "_id.day": 1 } }
         ]);
-
         // Build date labels based on window
-        const labels: string[] = [];
+        const labels = [];
         // Determine number of units (days or hours)
         if (win.endsWith('h')) {
             // Hourly labels
@@ -267,7 +242,8 @@ export const getStatusTrends = async (req: Request, res: Response) => {
                 const d = new Date(now.getTime() - i * 60 * 60 * 1000);
                 labels.push(d.toISOString().slice(0, 13) + ':00');
             }
-        } else {
+        }
+        else {
             // Daily labels
             const days = diff / (1000 * 60 * 60 * 24);
             for (let i = days; i >= 0; i--) {
@@ -275,15 +251,8 @@ export const getStatusTrends = async (req: Request, res: Response) => {
                 labels.push(d.toISOString().split('T')[0]);
             }
         }
-
-        // Define a Series type for proper indexing
-        interface Series {
-            success: Record<string, number>;
-            client: Record<string, number>;
-            server: Record<string, number>;
-        }
         // Initialize series
-        const series: Series = {
+        const series = {
             success: {},
             client: {},
             server: {}
@@ -293,29 +262,26 @@ export const getStatusTrends = async (req: Request, res: Response) => {
             series.client[day] = 0;
             series.server[day] = 0;
         });
-
-        // Fill series
-        interface TrendId { day: string; cat: string }
         result.forEach(item => {
-            const id = item._id as TrendId;
+            const id = item._id;
             const dayKey = id.day;
             // Cast category to a key of Series
-            const catKey = id.cat as keyof Series;
+            const catKey = id.cat;
             series[catKey][dayKey] = item.count;
         });
-
         res.json({ labels, success: labels.map(d => series.success[d]), client: labels.map(d => series.client[d]), server: labels.map(d => series.server[d]) });
-    } catch (error) {
+    }
+    catch (error) {
         res.status(500).json({ message: 'Error computing status trends', error });
     }
 };
-
+exports.getStatusTrends = getStatusTrends;
 // Controller: Top slowest endpoints within a given time window
-export const getSlowEndpoints = async (req: Request, res: Response) => {
+const getSlowEndpoints = async (req, res) => {
     try {
-        const win = (req.query.window as string) || '1d';
+        const win = req.query.window || '1d';
         // Determine milliseconds to subtract for each window
-        const map: Record<string, number> = {
+        const map = {
             '1h': 1000 * 60 * 60,
             '6h': 1000 * 60 * 60 * 6,
             '12h': 1000 * 60 * 60 * 12,
@@ -328,16 +294,16 @@ export const getSlowEndpoints = async (req: Request, res: Response) => {
         };
         const diff = map[win] || map['1d'];
         const start = new Date(Date.now() - diff);
-
-        const slowEndpoints = await ApiLog.aggregate([
+        const slowEndpoints = await apilogs_model_1.default.aggregate([
             { $match: { date: { $gte: start } } },
             { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
             { $sort: { avgTime: -1 } },
             { $limit: 5 }
         ]);
-
         res.json({ slowEndpoints });
-    } catch (error) {
+    }
+    catch (error) {
         res.status(500).json({ message: 'Error computing slow endpoints', error });
     }
 };
+exports.getSlowEndpoints = getSlowEndpoints;

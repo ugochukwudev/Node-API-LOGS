@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -48,11 +39,11 @@ const createExpressLogger = ({ app, mongoUri, beginswith, specifics }) => {
         maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
         compressors: 'zlib', // Use compression
     })
-        .then(() => __awaiter(void 0, void 0, void 0, function* () {
+        .then(async () => {
         console.log('node api logger db connected with optimized settings');
         // Create indexes immediately after connection
-        yield (0, indexes_1.createIndexes)();
-    }))
+        await (0, indexes_1.createIndexes)();
+    })
         .catch(err => console.error('node api logger db connection error:', err));
     app.use((0, cookie_parser_1.default)());
     // Middleware for logging
@@ -76,4 +67,3 @@ const createExpressLogger = ({ app, mongoUri, beginswith, specifics }) => {
 exports.createExpressLogger = createExpressLogger;
 const CreateNextLogger = () => { };
 exports.CreateNextLogger = CreateNextLogger;
-//# sourceMappingURL=index.js.map

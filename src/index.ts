@@ -6,6 +6,7 @@ import apiRoutes from './routes/api';
 import authRoutes from './routes/auth';
 import { logMiddleware } from './middleware/log';
 import { verifyToken } from './middleware/auth';
+import { createIndexes } from './utils/indexes';
 
 /**
  * Initializes and configures an Express logger for tracking API requests.
@@ -28,8 +29,19 @@ export const createExpressLogger = ({ app, mongoUri, beginswith, specifics }: {
     app: Application, mongoUri: string, beginswith?: string[], specifics?: string[]
 }) => {
 
-    mongoose.connect(mongoUri)
-        .then(() => console.log('node api logger db connected'))
+    // Configure connection with pooling and performance optimizations
+    mongoose.connect(mongoUri, {
+        maxPoolSize: 10, // Maintain up to 10 socket connections
+        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+        compressors: 'zlib', // Use compression
+    })
+        .then(async () => {
+            console.log('node api logger db connected with optimized settings');
+            // Create indexes immediately after connection
+            await createIndexes();
+        })
         .catch(err => console.error('node api logger db connection error:', err));
 
     app.use(cookieParser());

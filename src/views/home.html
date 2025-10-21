@@ -5,104 +5,179 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard - API Logs</title>
   <link rel="stylesheet" href="/styles/tailwind.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex">
   <!-- Sidebar (Desktop) -->
-  <aside class="hidden md:flex md:flex-col w-64 bg-gray-800 text-gray-100">
-    <div class="h-16 flex items-center justify-center border-b border-gray-700 text-xl font-bold">
-      API Logs
+  <aside class="hidden md:flex md:flex-col w-64 sidebar">
+    <div class="h-16 flex items-center justify-center border-b border-slate-800">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-sm">AL</span>
+        </div>
+        <span class="text-xl font-bold text-white">API Logs</span>
+      </div>
     </div>
     <nav class="flex-1 p-4 space-y-2">
-      <a href="/logs/home" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium bg-gray-700">Dashboard</a>
-      <a href="/logs" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Logs</a>
-      <a href="/logs/settings" class="block px-4 py-2 rounded hover:bg-gray-700 font-medium">Settings</a>
+      <a href="/logs/home" class="nav-link active">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
+        </svg>
+        Dashboard
+      </a>
+      <a href="/logs" class="nav-link">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        Logs
+      </a>
+      <a href="/logs/settings" class="nav-link">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        Settings
+      </a>
     </nav>
   </aside>
 
   <!-- Mobile Header -->
-  <header class="md:hidden w-full bg-gray-800 text-gray-100 p-4 flex justify-between items-center">
-    <span class="text-lg font-bold">API Logs</span>
-    <!-- Placeholder for menu toggle -->
-    <span>&#9776;</span>
+  <header class="md:hidden w-full bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+        <span class="text-white font-bold text-sm">AL</span>
+      </div>
+      <span class="text-lg font-bold text-white">API Logs</span>
+    </div>
+    <button class="text-slate-300 hover:text-white">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
   </header>
 
   <!-- Main Content -->
-  <main class="flex-1 p-6">
-    <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+  <main class="flex-1 p-6 space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-white mb-2">Dashboard</h1>
+        <p class="text-slate-400">Monitor your API performance and health metrics</p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
+          <label for="time-range" class="text-sm text-slate-400">Time Range:</label>
+          <select id="time-range" class="input-modern w-32">
+            <option value="1h">1 Hour</option>
+            <option value="24h" selected>24 Hours</option>
+            <option value="7d">7 Days</option>
+            <option value="30d">30 Days</option>
+          </select>
+        </div>
+        <div class="flex items-center space-x-2 text-sm text-slate-400">
+          <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+          <span>Live</span>
+        </div>
+        <button class="btn-secondary text-sm">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
 
     <!-- Metrics Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Total Requests Card -->
-      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
-        <div class="flex items-center mb-2">
-          <span class="text-sm text-gray-400">Total Requests</span>
-          <details class="relative ml-2">
-            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
-            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 whitespace-pre-wrap z-10">Total number of API requests received.</div>
-          </details>
+      <div class="metric-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Total Requests</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">7 days</div>
         </div>
-        <div id="total-requests" class="text-3xl font-semibold h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
+        <div id="total-requests" class="metric-value loading-pulse h-8 w-20 rounded"></div>
       </div>
+
       <!-- Avg Response Time Card -->
-      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
-        <div class="flex items-center mb-2">
-          <span class="text-sm text-gray-400">Avg Response Time</span>
-          <details class="relative ml-2">
-            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
-            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Average time the server takes to respond (in seconds).</div>
-          </details>
+      <div class="metric-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Avg Response Time</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">7 days</div>
         </div>
-        <div id="avg-response" class="text-3xl font-semibold h-8 w-28 bg-gray-700 rounded animate-pulse"></div>
+        <div id="avg-response" class="metric-value loading-pulse h-8 w-24 rounded"></div>
       </div>
+
       <!-- Error Requests Card -->
-      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
-        <div class="flex items-center mb-2">
-          <span class="text-sm text-gray-400">Error Requests</span>
-          <details class="relative ml-2">
-            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
-            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Number of requests resulting in error codes (>=400).</div>
-          </details>
+      <div class="metric-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">Error Requests</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">7 days</div>
         </div>
-        <div id="error-count" class="text-3xl font-semibold h-8 w-16 bg-gray-700 rounded animate-pulse"></div>
+        <div id="error-count" class="metric-value loading-pulse h-8 w-16 rounded"></div>
       </div>
-      <!-- Slowest Endpoints Card -->
-      <div class="bg-gray-800 p-4 rounded shadow relative overflow-hidden">
-        <div class="flex items-center mb-2">
-          <span class="text-sm text-gray-400">Slowest Endpoints</span>
-          <!-- Time window selector -->
-          <select id="slow-window" class="ml-auto bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none">
-            <option value="1h">1 Hour</option>
-            <option value="6h">6 Hours</option>
-            <option value="12h">12 Hours</option>
-            <option value="1d" selected>1 Day</option>
-            <option value="7d">7 Days</option>
-            <option value="1m">1 Month</option>
-            <option value="3m">3 Months</option>
-            <option value="6m">6 Months</option>
-            <option value="1y">1 Year</option>
-          </select>
-          <details class="relative ml-2">
-            <summary class="text-gray-500 cursor-pointer">ℹ️</summary>
-            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10">Top endpoints by average response time.</div>
-          </details>
+
+      <!-- System Health Card -->
+      <div class="metric-card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="metric-label">System Health</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">Live</div>
         </div>
-        <ul id="slow-list" class="mt-2 list-disc list-inside text-sm text-gray-300 space-y-1 h-16 overflow-y-auto animate-pulse">
-          <!-- list items injected here -->
-        </ul>
+        <div id="system-health" class="metric-value text-emerald-400">Healthy</div>
       </div>
     </div>
 
-    <!-- Status Trends Line Chart -->
-    <div class="mt-8 bg-gray-800 p-4 rounded shadow h-64 overflow-hidden">
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="text-lg font-semibold text-gray-200 flex items-center">
-          Status Trends
-          <details class="relative ml-2">
-            <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
-            <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Counts of 2xx, 4xx, and 5xx responses over time.</div>
-          </details>
-        </h2>
-        <select id="trend-window" class="bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none">
+    <!-- Status Trends Chart -->
+    <div class="chart-container">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-white">Status Trends</h2>
+            <p class="text-sm text-slate-400">API response status codes over time</p>
+          </div>
+        </div>
+        <select id="trend-window" class="input-modern text-sm">
           <option value="1h">1 Hour</option>
           <option value="6h">6 Hours</option>
           <option value="12h">12 Hours</option>
@@ -114,72 +189,143 @@
           <option value="1y">1 Year</option>
         </select>
       </div>
-      <div class="relative h-full">
+      <div class="relative h-80">
         <canvas id="trendsChart" class="absolute inset-0 w-full h-full"></canvas>
       </div>
     </div>
-    <!-- System Stats -->
-    <div class="mt-8 bg-gray-800 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold mb-4">System Resources</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div>
-          <div class="flex items-center text-sm text-gray-400">
-            <span>Memory Usage</span>
-            <details class="relative ml-2">
-              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
-              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Percentage of system RAM currently in use.</div>
-            </details>
+    <!-- System Resources & Performance -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- System Resources -->
+      <div class="card">
+        <div class="flex items-center space-x-3 mb- p-6">
+          <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+            </svg>
           </div>
-          <div id="mem-usage" class="text-2xl font-semibold text-gray-100">--%</div>
+          <div>
+            <h3 class="text-lg font-semibold text-white">System Resources</h3>
+            <p class="text-sm text-slate-400">Real-time system metrics</p>
+          </div>
         </div>
-        <div>
-          <div class="flex items-center text-sm text-gray-400">
-            <span>CPU Load Avg (1,5,15)</span>
-            <details class="relative ml-2">
-              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
-              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">System load averages over 1, 5, and 15 minutes.</div>
-            </details>
+        <div class="space-y-6">
+          <div class="flex items-center justify-between p-6 bg-slate-800/50 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-slate-400">Memory Usage</p>
+                <p id="mem-usage" class="text-lg font-semibold text-white">--%</p>
+              </div>
+            </div>
           </div>
-          <div id="cpu-load" class="text-2xl font-semibold text-gray-100">--</div>
+          
+          <div class="flex items-center justify-between p-6 bg-slate-800/50 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-slate-400">CPU Load</p>
+                <p id="cpu-load" class="text-lg font-semibold text-white">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between p-6 bg-slate-800/50 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-slate-400">Uptime</p>
+                <p id="sys-uptime" class="text-lg font-semibold text-white">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between p-6 bg-slate-800/50 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-slate-400">Process Memory</p>
+                <p id="proc-rss" class="text-lg font-semibold text-white">-- MB</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <div class="flex items-center text-sm text-gray-400">
-            <span>Uptime</span>
-            <details class="relative ml-2">
-              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
-              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Total time since the system last started (seconds).</div>
-            </details>
+      </div>
+
+      <!-- Slow Endpoints -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-6 p-6">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold text-white">Slowest Endpoints</h3>
+              <p class="text-sm text-slate-400">Performance bottlenecks</p>
+            </div>
           </div>
-          <div id="sys-uptime" class="text-2xl font-semibold text-gray-100">--s</div>
+          <select id="slow-window" class="input-modern text-sm">
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="12h">12 Hours</option>
+            <option value="1d" selected>1 Day</option>
+            <option value="7d">7 Days</option>
+            <option value="1m">1 Month</option>
+          </select>
         </div>
-        <div>
-          <div class="flex items-center text-sm text-gray-400">
-            <span>Process RSS</span>
-            <details class="relative ml-2">
-              <summary class="text-gray-400 cursor-pointer">ℹ️</summary>
-              <div class="absolute bg-gray-700 text-white text-xs rounded px-2 py-1 mt-1 z-10 whitespace-pre-wrap">Resident Set Size: memory allocated for the process (in MB).</div>
-            </details>
+        <div class="space-y-4">
+          <div id="slow-list" class="slow-endpoints-list">
+            <!-- Slow endpoints will be populated here -->
           </div>
-          <div id="proc-rss" class="text-2xl font-semibold text-gray-100">-- MB</div>
         </div>
       </div>
     </div>
 
-    <!-- Detailed Slow Endpoints Table -->
-    <div class="mt-8 bg-gray-800 p-4 rounded shadow overflow-x-auto">
-      <h2 class="text-lg font-semibold mb-4">Top 5 Slowest Endpoints</h2>
-      <table class="min-w-full border-collapse">
-        <thead>
-          <tr>
-            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Endpoint</th>
-            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Avg Time</th>
-            <th class="px-4 py-2 border bg-gray-700 text-gray-300 text-left">Hits</th>
-          </tr>
-        </thead>
-        <tbody id="slow-endpoints-body">
-          <!-- rows injected here -->
-        </tbody>
-      </table>
+    <!-- Detailed Performance Table -->
+    <div class="card">
+      <div class="flex items-center space-x-3 mb-8 p-6">
+        <div class="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-white">Performance Analysis</h3>
+          <p class="text-sm text-slate-400">Detailed endpoint performance metrics</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto -mx-2 px-2">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>Avg Response Time</th>
+              <th>Request Count</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="slow-endpoints-body">
+            <!-- Performance data will be populated here -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 

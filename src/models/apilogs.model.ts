@@ -22,9 +22,16 @@ const ApiLogSchema: Schema = new Schema({
     responseBody: { type: Schema.Types.Mixed, required: true }, // Ensure this allows objects
     headers: { type: Schema.Types.Mixed, required: true },
     ip: { type: String, required: true },
-    date: { type: Date, default: Date.now },
+    date: { type: Date, default: Date.now, index: true },
     sessionLogs: { type: [Schema.Types.Mixed], default: [] },
 });
+
+// Add compound indexes for better query performance
+ApiLogSchema.index({ date: -1, status: 1 }); // For filtering by date and status
+ApiLogSchema.index({ endpoint: 1, date: -1 }); // For endpoint filtering with date sorting
+ApiLogSchema.index({ status: 1, date: -1 }); // For status filtering with date sorting
+ApiLogSchema.index({ responseTime: -1 }); // For finding slow endpoints
+ApiLogSchema.index({ date: -1 }); // For general date-based queries (already exists but explicit)
 
 const ApiLog = mongoose.model<IApiLog>('ApiLog', ApiLogSchema);
 
