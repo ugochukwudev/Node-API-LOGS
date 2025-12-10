@@ -15,62 +15,65 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSlowEndpoints = exports.getStatusTrends = exports.getSystemStats = exports.getStatusDistribution = exports.getMetrics = exports.getLogById = exports.getLogs = void 0;
 const apilogs_model_1 = __importDefault(require("../models/apilogs.model"));
 const os_1 = __importDefault(require("os"));
+const query_helpers_1 = require("../utils/query-helpers");
+const error_handlers_1 = require("../utils/error-handlers");
 const getLogs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { page = 1, limit = 20, endpoint, date, time, status } = req.query;
-    const filters = {};
-    // Add default date filter to limit results (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    filters.date = { $gte: thirtyDaysAgo };
-    // Optimize endpoint search - only if provided and meaningful
-    if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
-        filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
-    }
-    // Date filtering
-    if (date && typeof date === 'string') {
-        const start = new Date(date);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
-        filters.date = { $gte: start, $lt: end };
-    }
-    // Time filtering (only if date is also provided)
-    if (time && date && typeof time === 'string' && typeof date === 'string') {
-        const [hours, minutes] = time.split(':');
-        const startTime = new Date(date);
-        startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        const endTime = new Date(startTime);
-        endTime.setMinutes(endTime.getMinutes() + 59);
-        filters.date = { $gte: startTime, $lt: endTime };
-    }
-    // Status filtering
-    if (status && typeof status === 'string') {
-        filters.status = parseInt(status);
-    }
+    const { page, limit, endpoint, date, time, status } = req.query;
     try {
-        // Strict limits for performance
-        const maxLimit = Math.min(+limit, 50);
-        const maxPage = Math.min(+page, 100); // Prevent deep pagination
-        // Use lean() for better performance and projection
-        const logs = yield apilogs_model_1.default.find(filters, {
+        const filters = (0, query_helpers_1.buildFilters)({
+            endpoint,
+            date,
+            time,
+            status,
+            defaultDaysAgo: 30,
+        });
+        const { maxLimit, maxPage } = (0, query_helpers_1.getPaginationLimits)(page, limit);
+        const regexEndpoint = (0, query_helpers_1.hasRegexEndpoint)(endpoint);
+        const query = apilogs_model_1.default.find(filters, {
             method: 1,
             endpoint: 1,
             status: 1,
             date: 1,
             responseTime: 1,
-            _id: 1
+            _id: 1,
         })
-            .lean() // Use lean for better performance
+            .lean()
             .skip((maxPage - 1) * maxLimit)
             .limit(maxLimit)
             .sort({ date: -1 })
-            .hint({ date: -1 }); // Force index usage
-        // Get total count with same filters but limit for performance
-        const total = yield apilogs_model_1.default.countDocuments(filters).maxTimeMS(5000); // 5 second timeout
+            .maxTimeMS(10000);
+        // Only use hint for non-regex queries
+        if (!regexEndpoint) {
+            query.hint(status ? { status: 1, date: -1 } : { date: -1 });
+        }
+        const logs = yield query;
+        // Skip countDocuments for regex queries to avoid high scan ratio
+        let total;
+        if (regexEndpoint) {
+            total = (0, query_helpers_1.estimateTotalCount)(logs.length, maxLimit, maxPage);
+            console.warn("Skipping countDocuments for regex endpoint query to avoid high scan ratio");
+        }
+        else {
+            try {
+                total = yield apilogs_model_1.default.countDocuments(filters).maxTimeMS(8000);
+            }
+            catch (countError) {
+                if (countError.code === 50 ||
+                    countError.codeName === "MaxTimeMSExpired") {
+                    console.warn("countDocuments timed out, using estimated count");
+                    total = (0, query_helpers_1.estimateTotalCount)(logs.length, maxLimit, maxPage);
+                }
+                else {
+                    throw countError;
+                }
+            }
+        }
         res.json({ logs, total });
     }
     catch (error) {
-        console.error('getLogs error:', error);
-        res.status(500).json({ message: 'Server error: ' + error });
+        if (!(0, error_handlers_1.handleTimeoutError)(error, res)) {
+            (0, error_handlers_1.handleError)(error, res, "getLogs");
+        }
     }
 });
 exports.getLogs = getLogs;
@@ -79,116 +82,82 @@ const getLogById = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     try {
         const log = yield apilogs_model_1.default.findById(id);
         if (!log)
-            return res.status(404).json({ message: 'Log not found' });
+            return res.status(404).json({ message: "Log not found" });
         res.json({ log });
     }
     catch (error) {
-        res.status(500).json({ message: `Server error:${error}` });
+        (0, error_handlers_1.handleError)(error, res, "getLogById");
     }
 });
 exports.getLogById = getLogById;
 const getMetrics = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
-        // Get time range from query parameter
-        const timeRange = req.query.timeRange || '24h';
-        // Calculate date based on time range
-        let startDate = new Date();
-        switch (timeRange) {
-            case '1h':
-                startDate.setHours(startDate.getHours() - 1);
-                break;
-            case '24h':
-                startDate.setHours(startDate.getHours() - 24);
-                break;
-            case '7d':
-                startDate.setDate(startDate.getDate() - 7);
-                break;
-            case '30d':
-                startDate.setDate(startDate.getDate() - 30);
-                break;
-            default:
-                startDate.setHours(startDate.getHours() - 24);
-        }
-        // Run all queries in parallel with time limits
+        const timeRange = req.query.timeRange || "24h";
+        const startDate = (0, query_helpers_1.getStartDateFromTimeRange)(timeRange);
         const [totalRequests, avgResult, slowEndpoints, errorCount] = yield Promise.all([
-            // Total requests
             apilogs_model_1.default.countDocuments({ date: { $gte: startDate } }).maxTimeMS(3000),
-            // Average response time
             apilogs_model_1.default.aggregate([
                 { $match: { date: { $gte: startDate } } },
-                { $group: { _id: null, avgResponseTime: { $avg: '$responseTime' } } }
-            ]).option({ maxTimeMS: 3000 }),
-            // Top 5 slowest endpoints
+                { $group: { _id: null, avgResponseTime: { $avg: "$responseTime" } } },
+            ])
+                .option({ maxTimeMS: 3000 })
+                .allowDiskUse(true),
             apilogs_model_1.default.aggregate([
                 { $match: { date: { $gte: startDate } } },
-                { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
-                { $match: { count: { $gte: 3 } } }, // Only endpoints with 3+ requests
+                {
+                    $group: {
+                        _id: "$endpoint",
+                        avgTime: { $avg: "$responseTime" },
+                        count: { $sum: 1 },
+                    },
+                },
+                { $match: { count: { $gte: 3 } } },
                 { $sort: { avgTime: -1 } },
-                { $limit: 5 }
-            ]).option({ maxTimeMS: 3000 }),
-            // Error count
+                { $limit: 5 },
+            ])
+                .option({ maxTimeMS: 3000 })
+                .allowDiskUse(true),
             apilogs_model_1.default.countDocuments({
                 date: { $gte: startDate },
-                status: { $gte: 400 }
-            }).maxTimeMS(3000)
+                status: { $gte: 400 },
+            }).maxTimeMS(3000),
         ]);
         res.json({
             totalRequests,
             avgResponseTime: ((_a = avgResult[0]) === null || _a === void 0 ? void 0 : _a.avgResponseTime) || 0,
             slowEndpoints,
-            errorCount
+            errorCount,
         });
     }
     catch (error) {
-        console.error('getMetrics error:', error);
-        res.status(500).json({ message: 'Error computing metrics', error });
+        (0, error_handlers_1.handleError)(error, res, "getMetrics");
     }
 });
 exports.getMetrics = getMetrics;
-// Controller: Distribution of requests by status code
 const getStatusDistribution = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        // Limit to last 7 days for performance
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const filters = { date: { $gte: sevenDaysAgo } };
-        // Apply filters from query params
-        const { endpoint, date, time, status } = req.query;
-        if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
-            filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
-        }
-        if (date && typeof date === 'string') {
-            const start = new Date(date);
-            const end = new Date(start);
-            end.setDate(end.getDate() + 1);
-            filters.date = { $gte: start, $lt: end };
-        }
-        if (time && typeof time === 'string' && date) {
-            const [hours, minutes] = time.split(':');
-            const startTime = new Date(date);
-            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            const endTime = new Date(startTime);
-            endTime.setMinutes(endTime.getMinutes() + 59);
-            filters.date = { $gte: startTime, $lt: endTime };
-        }
-        if (status && typeof status === 'string') {
-            filters.status = parseInt(status, 10);
-        }
+        const filters = (0, query_helpers_1.buildFilters)({
+            endpoint: req.query.endpoint,
+            date: req.query.date,
+            time: req.query.time,
+            status: req.query.status,
+            defaultDaysAgo: 7,
+        });
         const distribution = yield apilogs_model_1.default.aggregate([
             { $match: filters },
-            { $group: { _id: '$status', count: { $sum: 1 } } },
-            { $sort: { _id: 1 } }
-        ]).option({ maxTimeMS: 3000 }); // 3 second timeout
+            { $group: { _id: "$status", count: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+        ])
+            .option({ maxTimeMS: 3000 })
+            .allowDiskUse(true);
         res.json({ distribution });
     }
     catch (error) {
-        console.error('getStatusDistribution error:', error);
-        res.status(500).json({ message: 'Error computing distribution', error });
+        (0, error_handlers_1.handleError)(error, res, "getStatusDistribution");
     }
 });
 exports.getStatusDistribution = getStatusDistribution;
-// Controller: System resource statistics
 const getSystemStats = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const totalMem = os_1.default.totalmem();
@@ -199,122 +168,105 @@ const getSystemStats = (req, res) => __awaiter(void 0, void 0, void 0, function*
         const uptime = process.uptime();
         const procMem = process.memoryUsage();
         const procMemPercent = (procMem.rss / totalMem) * 100;
-        res.json({ totalMem, freeMem, usedMem, memUsage, loadAvg, uptime, procMem, procMemPercent });
+        res.json({
+            totalMem,
+            freeMem,
+            usedMem,
+            memUsage,
+            loadAvg,
+            uptime,
+            procMem,
+            procMemPercent,
+        });
     }
     catch (error) {
-        res.status(500).json({ message: 'Error computing system stats', error });
+        (0, error_handlers_1.handleError)(error, res, "getSystemStats");
     }
 });
 exports.getSystemStats = getSystemStats;
-// Controller: Status code trends over last 7 days
 const getStatusTrends = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
-        // Determine time window from query param (default 7 days)
-        const win = req.query.window || '7d';
-        const mapWindow = {
-            '1h': 1000 * 60 * 60,
-            '6h': 1000 * 60 * 60 * 6,
-            '12h': 1000 * 60 * 60 * 12,
-            '1d': 1000 * 60 * 60 * 24,
-            '7d': 1000 * 60 * 60 * 24 * 7,
-            '1m': 1000 * 60 * 60 * 24 * 30,
-            '3m': 1000 * 60 * 60 * 24 * 30 * 3,
-            '6m': 1000 * 60 * 60 * 24 * 30 * 6,
-            '1y': 1000 * 60 * 60 * 24 * 365
-        };
-        const now = new Date();
-        const diff = (_a = mapWindow[win]) !== null && _a !== void 0 ? _a : mapWindow['7d'];
-        const start = new Date(now.getTime() - diff);
-        // Aggregate by day and status category
+        const win = req.query.window || "7d";
+        const diff = (_a = query_helpers_1.TIME_WINDOWS[win]) !== null && _a !== void 0 ? _a : query_helpers_1.TIME_WINDOWS["7d"];
+        const start = (0, query_helpers_1.getStartDateFromWindow)(win, "7d");
         const result = yield apilogs_model_1.default.aggregate([
             { $match: { date: { $gte: start } } },
             {
                 $project: {
                     day: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                    status: 1
-                }
+                    status: 1,
+                },
             },
             {
                 $group: {
-                    _id: { day: "$day", cat: { $cond: [{ $lt: ["$status", 300] }, "success", { $cond: [{ $lt: ["$status", 500] }, "client", "server"] }] } },
-                    count: { $sum: 1 }
-                }
+                    _id: {
+                        day: "$day",
+                        cat: {
+                            $cond: [
+                                { $lt: ["$status", 300] },
+                                "success",
+                                { $cond: [{ $lt: ["$status", 500] }, "client", "server"] },
+                            ],
+                        },
+                    },
+                    count: { $sum: 1 },
+                },
             },
-            { $sort: { "_id.day": 1 } }
-        ]);
-        // Build date labels based on window
-        const labels = [];
-        // Determine number of units (days or hours)
-        if (win.endsWith('h')) {
-            // Hourly labels
-            const hours = diff / (1000 * 60 * 60);
-            for (let i = hours; i >= 0; i--) {
-                const d = new Date(now.getTime() - i * 60 * 60 * 1000);
-                labels.push(d.toISOString().slice(0, 13) + ':00');
-            }
-        }
-        else {
-            // Daily labels
-            const days = diff / (1000 * 60 * 60 * 24);
-            for (let i = days; i >= 0; i--) {
-                const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-                labels.push(d.toISOString().split('T')[0]);
-            }
-        }
-        // Initialize series
+            { $sort: { "_id.day": 1 } },
+        ])
+            .option({ maxTimeMS: 5000 })
+            .allowDiskUse(true);
+        const labels = (0, query_helpers_1.buildDateLabels)(win, diff);
         const series = {
             success: {},
             client: {},
-            server: {}
+            server: {},
         };
-        labels.forEach(day => {
+        labels.forEach((day) => {
             series.success[day] = 0;
             series.client[day] = 0;
             series.server[day] = 0;
         });
-        result.forEach(item => {
+        result.forEach((item) => {
             const id = item._id;
-            const dayKey = id.day;
-            // Cast category to a key of Series
             const catKey = id.cat;
-            series[catKey][dayKey] = item.count;
+            series[catKey][id.day] = item.count;
         });
-        res.json({ labels, success: labels.map(d => series.success[d]), client: labels.map(d => series.client[d]), server: labels.map(d => series.server[d]) });
+        res.json({
+            labels,
+            success: labels.map((d) => series.success[d]),
+            client: labels.map((d) => series.client[d]),
+            server: labels.map((d) => series.server[d]),
+        });
     }
     catch (error) {
-        res.status(500).json({ message: 'Error computing status trends', error });
+        (0, error_handlers_1.handleError)(error, res, "getStatusTrends");
     }
 });
 exports.getStatusTrends = getStatusTrends;
-// Controller: Top slowest endpoints within a given time window
 const getSlowEndpoints = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const win = req.query.window || '1d';
-        // Determine milliseconds to subtract for each window
-        const map = {
-            '1h': 1000 * 60 * 60,
-            '6h': 1000 * 60 * 60 * 6,
-            '12h': 1000 * 60 * 60 * 12,
-            '1d': 1000 * 60 * 60 * 24,
-            '7d': 1000 * 60 * 60 * 24 * 7,
-            '1m': 1000 * 60 * 60 * 24 * 30,
-            '3m': 1000 * 60 * 60 * 24 * 30 * 3,
-            '6m': 1000 * 60 * 60 * 24 * 30 * 6,
-            '1y': 1000 * 60 * 60 * 24 * 365,
-        };
-        const diff = map[win] || map['1d'];
-        const start = new Date(Date.now() - diff);
+        const win = req.query.window || "1d";
+        const start = (0, query_helpers_1.getStartDateFromWindow)(win, "1d");
         const slowEndpoints = yield apilogs_model_1.default.aggregate([
             { $match: { date: { $gte: start } } },
-            { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
+            {
+                $group: {
+                    _id: "$endpoint",
+                    avgTime: { $avg: "$responseTime" },
+                    count: { $sum: 1 },
+                },
+            },
             { $sort: { avgTime: -1 } },
-            { $limit: 5 }
-        ]);
+            { $limit: 5 },
+        ])
+            .option({ maxTimeMS: 5000 })
+            .allowDiskUse(true);
         res.json({ slowEndpoints });
     }
     catch (error) {
-        res.status(500).json({ message: 'Error computing slow endpoints', error });
+        (0, error_handlers_1.handleError)(error, res, "getSlowEndpoints");
     }
 });
 exports.getSlowEndpoints = getSlowEndpoints;

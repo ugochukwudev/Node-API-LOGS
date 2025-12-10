@@ -1,6 +1,6 @@
 {
   "name": "node-api-logs",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -8,6 +8,10 @@
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "build:css": "tailwindcss -i src/views/styles/input.css -o src/views/styles/tailwind.css --minify",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
     "test:performance": "node test-performance.js"
   },
   "keywords": [],
@@ -30,13 +34,20 @@
     "tailwindcss": "^3.4.10"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^22.5.1",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
+    "mongodb-memory-server": "^10.4.1",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }

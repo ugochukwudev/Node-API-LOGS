@@ -1,343 +1,291 @@
-import { Request, Response } from 'express';
-import ApiLog from '../models/apilogs.model';
-import os from 'os';
+import { Request, Response } from "express";
+import ApiLog from "../models/apilogs.model";
+import os from "os";
+import {
+	buildFilters,
+	buildDateLabels,
+	estimateTotalCount,
+	getPaginationLimits,
+	getStartDateFromTimeRange,
+	getStartDateFromWindow,
+	hasRegexEndpoint,
+	TIME_WINDOWS,
+} from "../utils/query-helpers";
+import { handleError, handleTimeoutError } from "../utils/error-handlers";
 
 export const getLogs = async (req: Request, res: Response) => {
-    const { page = 1, limit = 20, endpoint, date, time, status } = req.query;
-    const filters: any = {};
+	const { page, limit, endpoint, date, time, status } = req.query;
 
-    // Add default date filter to limit results (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    filters.date = { $gte: thirtyDaysAgo };
+	try {
+		const filters = buildFilters({
+			endpoint,
+			date,
+			time,
+			status,
+			defaultDaysAgo: 30,
+		});
+		const { maxLimit, maxPage } = getPaginationLimits(page, limit);
+		const regexEndpoint = hasRegexEndpoint(endpoint);
 
-    // Optimize endpoint search - only if provided and meaningful
-    if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
-        filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
-    }
+		const query = ApiLog.find(filters, {
+			method: 1,
+			endpoint: 1,
+			status: 1,
+			date: 1,
+			responseTime: 1,
+			_id: 1,
+		})
+			.lean()
+			.skip((maxPage - 1) * maxLimit)
+			.limit(maxLimit)
+			.sort({ date: -1 })
+			.maxTimeMS(10000);
 
-    // Date filtering
-    if (date && typeof date === 'string') {
-        const start = new Date(date);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
-        filters.date = { $gte: start, $lt: end };
-    }
+		// Only use hint for non-regex queries
+		if (!regexEndpoint) {
+			query.hint(status ? { status: 1, date: -1 } : { date: -1 });
+		}
 
-    // Time filtering (only if date is also provided)
-    if (time && date && typeof time === 'string' && typeof date === 'string') {
-        const [hours, minutes] = time.split(':');
-        const startTime = new Date(date);
-        startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        const endTime = new Date(startTime);
-        endTime.setMinutes(endTime.getMinutes() + 59);
-        filters.date = { $gte: startTime, $lt: endTime };
-    }
+		const logs = await query;
 
-    // Status filtering
-    if (status && typeof status === 'string') {
-        filters.status = parseInt(status);
-    }
+		// Skip countDocuments for regex queries to avoid high scan ratio
+		let total: number;
+		if (regexEndpoint) {
+			total = estimateTotalCount(logs.length, maxLimit, maxPage);
+			console.warn(
+				"Skipping countDocuments for regex endpoint query to avoid high scan ratio"
+			);
+		} else {
+			try {
+				total = await ApiLog.countDocuments(filters).maxTimeMS(8000);
+			} catch (countError: any) {
+				if (
+					countError.code === 50 ||
+					countError.codeName === "MaxTimeMSExpired"
+				) {
+					console.warn("countDocuments timed out, using estimated count");
+					total = estimateTotalCount(logs.length, maxLimit, maxPage);
+				} else {
+					throw countError;
+				}
+			}
+		}
 
-    try {
-        // Strict limits for performance
-        const maxLimit = Math.min(+limit, 50);
-        const maxPage = Math.min(+page, 100); // Prevent deep pagination
-
-        // Use lean() for better performance and projection
-        const logs = await ApiLog.find(filters, {
-            method: 1,
-            endpoint: 1,
-            status: 1,
-            date: 1,
-            responseTime: 1,
-            _id: 1
-        })
-            .lean() // Use lean for better performance
-            .skip((maxPage - 1) * maxLimit)
-            .limit(maxLimit)
-            .sort({ date: -1 })
-            .hint({ date: -1 }); // Force index usage
-
-        // Get total count with same filters but limit for performance
-        const total = await ApiLog.countDocuments(filters).maxTimeMS(5000); // 5 second timeout
-
-        res.json({ logs, total });
-    } catch (error) {
-        console.error('getLogs error:', error);
-        res.status(500).json({ message: 'Server error: ' + error });
-    }
+		res.json({ logs, total });
+	} catch (error: any) {
+		if (!handleTimeoutError(error, res)) {
+			handleError(error, res, "getLogs");
+		}
+	}
 };
 
-
 export const getLogById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+	const { id } = req.params;
 
-
-    try {
-        const log = await ApiLog.findById(id);
-        if (!log) return res.status(404).json({ message: 'Log not found' });
-
-        res.json({ log });
-    } catch (error) {
-        res.status(500).json({ message: `Server error:${error}` });
-    }
+	try {
+		const log = await ApiLog.findById(id);
+		if (!log) return res.status(404).json({ message: "Log not found" });
+		res.json({ log });
+	} catch (error) {
+		handleError(error, res, "getLogById");
+	}
 };
 
 export const getMetrics = async (req: Request, res: Response) => {
-    try {
-        // Get time range from query parameter
-        const timeRange = req.query.timeRange as string || '24h';
+	try {
+		const timeRange = (req.query.timeRange as string) || "24h";
+		const startDate = getStartDateFromTimeRange(timeRange);
 
-        // Calculate date based on time range
-        let startDate = new Date();
-        switch (timeRange) {
-            case '1h':
-                startDate.setHours(startDate.getHours() - 1);
-                break;
-            case '24h':
-                startDate.setHours(startDate.getHours() - 24);
-                break;
-            case '7d':
-                startDate.setDate(startDate.getDate() - 7);
-                break;
-            case '30d':
-                startDate.setDate(startDate.getDate() - 30);
-                break;
-            default:
-                startDate.setHours(startDate.getHours() - 24);
-        }
+		const [totalRequests, avgResult, slowEndpoints, errorCount] =
+			await Promise.all([
+				ApiLog.countDocuments({ date: { $gte: startDate } }).maxTimeMS(3000),
+				ApiLog.aggregate([
+					{ $match: { date: { $gte: startDate } } },
+					{ $group: { _id: null, avgResponseTime: { $avg: "$responseTime" } } },
+				])
+					.option({ maxTimeMS: 3000 })
+					.allowDiskUse(true),
+				ApiLog.aggregate([
+					{ $match: { date: { $gte: startDate } } },
+					{
+						$group: {
+							_id: "$endpoint",
+							avgTime: { $avg: "$responseTime" },
+							count: { $sum: 1 },
+						},
+					},
+					{ $match: { count: { $gte: 3 } } },
+					{ $sort: { avgTime: -1 } },
+					{ $limit: 5 },
+				])
+					.option({ maxTimeMS: 3000 })
+					.allowDiskUse(true),
+				ApiLog.countDocuments({
+					date: { $gte: startDate },
+					status: { $gte: 400 },
+				}).maxTimeMS(3000),
+			]);
 
-        // Run all queries in parallel with time limits
-        const [
-            totalRequests,
-            avgResult,
-            slowEndpoints,
-            errorCount
-        ] = await Promise.all([
-            // Total requests
-            ApiLog.countDocuments({ date: { $gte: startDate } }).maxTimeMS(3000),
-
-            // Average response time
-            ApiLog.aggregate([
-                { $match: { date: { $gte: startDate } } },
-                { $group: { _id: null, avgResponseTime: { $avg: '$responseTime' } } }
-            ]).option({ maxTimeMS: 3000 }),
-
-            // Top 5 slowest endpoints
-            ApiLog.aggregate([
-                { $match: { date: { $gte: startDate } } },
-                { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
-                { $match: { count: { $gte: 3 } } }, // Only endpoints with 3+ requests
-                { $sort: { avgTime: -1 } },
-                { $limit: 5 }
-            ]).option({ maxTimeMS: 3000 }),
-
-            // Error count
-            ApiLog.countDocuments({
-                date: { $gte: startDate },
-                status: { $gte: 400 }
-            }).maxTimeMS(3000)
-        ]);
-
-        res.json({
-            totalRequests,
-            avgResponseTime: avgResult[0]?.avgResponseTime || 0,
-            slowEndpoints,
-            errorCount
-        });
-    } catch (error) {
-        console.error('getMetrics error:', error);
-        res.status(500).json({ message: 'Error computing metrics', error });
-    }
+		res.json({
+			totalRequests,
+			avgResponseTime: avgResult[0]?.avgResponseTime || 0,
+			slowEndpoints,
+			errorCount,
+		});
+	} catch (error) {
+		handleError(error, res, "getMetrics");
+	}
 };
 
-// Controller: Distribution of requests by status code
 export const getStatusDistribution = async (req: Request, res: Response) => {
-    try {
-        // Limit to last 7 days for performance
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+	try {
+		const filters = buildFilters({
+			endpoint: req.query.endpoint,
+			date: req.query.date,
+			time: req.query.time,
+			status: req.query.status,
+			defaultDaysAgo: 7,
+		});
 
-        const filters: any = { date: { $gte: sevenDaysAgo } };
+		const distribution = await ApiLog.aggregate([
+			{ $match: filters },
+			{ $group: { _id: "$status", count: { $sum: 1 } } },
+			{ $sort: { _id: 1 } },
+		])
+			.option({ maxTimeMS: 3000 })
+			.allowDiskUse(true);
 
-        // Apply filters from query params
-        const { endpoint, date, time, status } = req.query;
-
-        if (endpoint && typeof endpoint === 'string' && endpoint.trim().length > 2) {
-            filters.endpoint = { $regex: endpoint.trim(), $options: 'i' };
-        }
-
-        if (date && typeof date === 'string') {
-            const start = new Date(date);
-            const end = new Date(start);
-            end.setDate(end.getDate() + 1);
-            filters.date = { $gte: start, $lt: end };
-        }
-
-        if (time && typeof time === 'string' && date) {
-            const [hours, minutes] = time.split(':');
-            const startTime = new Date(date as string);
-            startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            const endTime = new Date(startTime);
-            endTime.setMinutes(endTime.getMinutes() + 59);
-            filters.date = { $gte: startTime, $lt: endTime };
-        }
-
-        if (status && typeof status === 'string') {
-            filters.status = parseInt(status, 10);
-        }
-
-        const distribution = await ApiLog.aggregate([
-            { $match: filters },
-            { $group: { _id: '$status', count: { $sum: 1 } } },
-            { $sort: { _id: 1 } }
-        ]).option({ maxTimeMS: 3000 }); // 3 second timeout
-
-        res.json({ distribution });
-    } catch (error) {
-        console.error('getStatusDistribution error:', error);
-        res.status(500).json({ message: 'Error computing distribution', error });
-    }
+		res.json({ distribution });
+	} catch (error) {
+		handleError(error, res, "getStatusDistribution");
+	}
 };
 
-// Controller: System resource statistics
 export const getSystemStats = async (req: Request, res: Response) => {
-    try {
-        const totalMem = os.totalmem();
-        const freeMem = os.freemem();
-        const usedMem = totalMem - freeMem;
-        const memUsage = (usedMem / totalMem) * 100;
-        const loadAvg = os.loadavg();
-        const uptime = process.uptime();
-        const procMem = process.memoryUsage();
-        const procMemPercent = (procMem.rss / totalMem) * 100;
+	try {
+		const totalMem = os.totalmem();
+		const freeMem = os.freemem();
+		const usedMem = totalMem - freeMem;
+		const memUsage = (usedMem / totalMem) * 100;
+		const loadAvg = os.loadavg();
+		const uptime = process.uptime();
+		const procMem = process.memoryUsage();
+		const procMemPercent = (procMem.rss / totalMem) * 100;
 
-        res.json({ totalMem, freeMem, usedMem, memUsage, loadAvg, uptime, procMem, procMemPercent });
-    } catch (error) {
-        res.status(500).json({ message: 'Error computing system stats', error });
-    }
+		res.json({
+			totalMem,
+			freeMem,
+			usedMem,
+			memUsage,
+			loadAvg,
+			uptime,
+			procMem,
+			procMemPercent,
+		});
+	} catch (error) {
+		handleError(error, res, "getSystemStats");
+	}
 };
 
-// Controller: Status code trends over last 7 days
 export const getStatusTrends = async (req: Request, res: Response) => {
-    try {
-        // Determine time window from query param (default 7 days)
-        const win = (req.query.window as string) || '7d';
-        const mapWindow: Record<string, number> = {
-            '1h': 1000 * 60 * 60,
-            '6h': 1000 * 60 * 60 * 6,
-            '12h': 1000 * 60 * 60 * 12,
-            '1d': 1000 * 60 * 60 * 24,
-            '7d': 1000 * 60 * 60 * 24 * 7,
-            '1m': 1000 * 60 * 60 * 24 * 30,
-            '3m': 1000 * 60 * 60 * 24 * 30 * 3,
-            '6m': 1000 * 60 * 60 * 24 * 30 * 6,
-            '1y': 1000 * 60 * 60 * 24 * 365
-        };
-        const now = new Date();
-        const diff = mapWindow[win] ?? mapWindow['7d'];
-        const start = new Date(now.getTime() - diff);
+	try {
+		const win = (req.query.window as string) || "7d";
+		const diff =
+			TIME_WINDOWS[win as keyof typeof TIME_WINDOWS] ?? TIME_WINDOWS["7d"];
+		const start = getStartDateFromWindow(win, "7d");
 
-        // Aggregate by day and status category
-        const result = await ApiLog.aggregate([
-            { $match: { date: { $gte: start } } },
-            {
-                $project: {
-                    day: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                    status: 1
-                }
-            },
-            {
-                $group: {
-                    _id: { day: "$day", cat: { $cond: [{ $lt: ["$status", 300] }, "success", { $cond: [{ $lt: ["$status", 500] }, "client", "server"] }] } },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { "_id.day": 1 } }
-        ]);
+		const result = await ApiLog.aggregate([
+			{ $match: { date: { $gte: start } } },
+			{
+				$project: {
+					day: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+					status: 1,
+				},
+			},
+			{
+				$group: {
+					_id: {
+						day: "$day",
+						cat: {
+							$cond: [
+								{ $lt: ["$status", 300] },
+								"success",
+								{ $cond: [{ $lt: ["$status", 500] }, "client", "server"] },
+							],
+						},
+					},
+					count: { $sum: 1 },
+				},
+			},
+			{ $sort: { "_id.day": 1 } },
+		])
+			.option({ maxTimeMS: 5000 })
+			.allowDiskUse(true);
 
-        // Build date labels based on window
-        const labels: string[] = [];
-        // Determine number of units (days or hours)
-        if (win.endsWith('h')) {
-            // Hourly labels
-            const hours = diff / (1000 * 60 * 60);
-            for (let i = hours; i >= 0; i--) {
-                const d = new Date(now.getTime() - i * 60 * 60 * 1000);
-                labels.push(d.toISOString().slice(0, 13) + ':00');
-            }
-        } else {
-            // Daily labels
-            const days = diff / (1000 * 60 * 60 * 24);
-            for (let i = days; i >= 0; i--) {
-                const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-                labels.push(d.toISOString().split('T')[0]);
-            }
-        }
+		const labels = buildDateLabels(win, diff);
 
-        // Define a Series type for proper indexing
-        interface Series {
-            success: Record<string, number>;
-            client: Record<string, number>;
-            server: Record<string, number>;
-        }
-        // Initialize series
-        const series: Series = {
-            success: {},
-            client: {},
-            server: {}
-        };
-        labels.forEach(day => {
-            series.success[day] = 0;
-            series.client[day] = 0;
-            series.server[day] = 0;
-        });
+		interface Series {
+			success: Record<string, number>;
+			client: Record<string, number>;
+			server: Record<string, number>;
+		}
 
-        // Fill series
-        interface TrendId { day: string; cat: string }
-        result.forEach(item => {
-            const id = item._id as TrendId;
-            const dayKey = id.day;
-            // Cast category to a key of Series
-            const catKey = id.cat as keyof Series;
-            series[catKey][dayKey] = item.count;
-        });
+		const series: Series = {
+			success: {},
+			client: {},
+			server: {},
+		};
 
-        res.json({ labels, success: labels.map(d => series.success[d]), client: labels.map(d => series.client[d]), server: labels.map(d => series.server[d]) });
-    } catch (error) {
-        res.status(500).json({ message: 'Error computing status trends', error });
-    }
+		labels.forEach((day) => {
+			series.success[day] = 0;
+			series.client[day] = 0;
+			series.server[day] = 0;
+		});
+
+		interface TrendId {
+			day: string;
+			cat: string;
+		}
+
+		result.forEach((item) => {
+			const id = item._id as TrendId;
+			const catKey = id.cat as keyof Series;
+			series[catKey][id.day] = item.count;
+		});
+
+		res.json({
+			labels,
+			success: labels.map((d) => series.success[d]),
+			client: labels.map((d) => series.client[d]),
+			server: labels.map((d) => series.server[d]),
+		});
+	} catch (error) {
+		handleError(error, res, "getStatusTrends");
+	}
 };
 
-// Controller: Top slowest endpoints within a given time window
 export const getSlowEndpoints = async (req: Request, res: Response) => {
-    try {
-        const win = (req.query.window as string) || '1d';
-        // Determine milliseconds to subtract for each window
-        const map: Record<string, number> = {
-            '1h': 1000 * 60 * 60,
-            '6h': 1000 * 60 * 60 * 6,
-            '12h': 1000 * 60 * 60 * 12,
-            '1d': 1000 * 60 * 60 * 24,
-            '7d': 1000 * 60 * 60 * 24 * 7,
-            '1m': 1000 * 60 * 60 * 24 * 30,
-            '3m': 1000 * 60 * 60 * 24 * 30 * 3,
-            '6m': 1000 * 60 * 60 * 24 * 30 * 6,
-            '1y': 1000 * 60 * 60 * 24 * 365,
-        };
-        const diff = map[win] || map['1d'];
-        const start = new Date(Date.now() - diff);
+	try {
+		const win = (req.query.window as string) || "1d";
+		const start = getStartDateFromWindow(win, "1d");
 
-        const slowEndpoints = await ApiLog.aggregate([
-            { $match: { date: { $gte: start } } },
-            { $group: { _id: '$endpoint', avgTime: { $avg: '$responseTime' }, count: { $sum: 1 } } },
-            { $sort: { avgTime: -1 } },
-            { $limit: 5 }
-        ]);
+		const slowEndpoints = await ApiLog.aggregate([
+			{ $match: { date: { $gte: start } } },
+			{
+				$group: {
+					_id: "$endpoint",
+					avgTime: { $avg: "$responseTime" },
+					count: { $sum: 1 },
+				},
+			},
+			{ $sort: { avgTime: -1 } },
+			{ $limit: 5 },
+		])
+			.option({ maxTimeMS: 5000 })
+			.allowDiskUse(true);
 
-        res.json({ slowEndpoints });
-    } catch (error) {
-        res.status(500).json({ message: 'Error computing slow endpoints', error });
-    }
+		res.json({ slowEndpoints });
+	} catch (error) {
+		handleError(error, res, "getSlowEndpoints");
+	}
 };
