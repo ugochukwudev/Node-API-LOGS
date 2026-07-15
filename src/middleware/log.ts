@@ -4,71 +4,72 @@ import { AsyncLocalStorage } from 'async_hooks';
 // Use AsyncLocalStorage to hold sessionLogs per request
 const asyncLocalStorage = new AsyncLocalStorage<{ sessionLogs: string[] }>();
 
-// Dynamically patch Winston loggers so all Winston logs go into sessionLogs for the current request
-try {
-    // @ts-ignore: optional Winston
-    const winston = require('winston');
-    if (winston.Logger && winston.Logger.prototype.log) {
-        const origLogMethod = winston.Logger.prototype.log;
-        winston.Logger.prototype.log = function (levelOrInfo: any, msg?: any, ...meta: any[]) {
-            const store = asyncLocalStorage.getStore();
-            if (store) {
-                let level = typeof levelOrInfo === 'string' ? levelOrInfo : levelOrInfo.level;
-                let message = typeof levelOrInfo === 'object' ? levelOrInfo.message : msg;
-                let rest = meta.length ? ' ' + JSON.stringify(meta) : '';
-                store.sessionLogs.push(`[WINSTON] [${level}] ${message}${rest}`);
-            }
-            return origLogMethod.apply(this, arguments as any);
-        };
+// Safety cap: one runaway request can't grow its log buffer without bound.
+const MAX_SESSION_LOGS = 500;
+
+// Push a line into the CURRENT request's sessionLogs (if we're inside one).
+// Outside a request context getStore() is undefined and this is a no-op.
+const capture = (prefix: string, text: string) => {
+    const store = asyncLocalStorage.getStore();
+    if (!store) return;
+    if (store.sessionLogs.length > MAX_SESSION_LOGS) return;
+    if (store.sessionLogs.length === MAX_SESSION_LOGS) {
+        store.sessionLogs.push(`[TRUNCATED] session log cap of ${MAX_SESSION_LOGS} lines reached`);
+        return;
     }
-    // Patch default logger methods like winston.info(), winston.error(), etc.
-    ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly', 'log'].forEach(fn => {
-        if (typeof winston[fn] === 'function') {
-            const origFn = winston[fn];
-            winston[fn] = function (...args: any[]) {
-                const store = asyncLocalStorage.getStore();
-                if (store) store.sessionLogs.push(`[WINSTON] [${fn}] ${args.join(' ')}`);
-                return origFn.apply(winston, args);
-            };
-        }
-    });
-} catch {
-    // Winston not present or patch failed - silently ignore
-}
+    store.sessionLogs.push(`${prefix} ${text}`);
+};
+
+// Capture at the stream level, patched ONCE at module load. Everything a
+// server logs ends up in stdout/stderr — console.log, Winston, pino, morgan —
+// so these two wrappers cover every logger with no library-specific patching.
+// The wrappers look up the active request via AsyncLocalStorage on each call.
+// Never patch per request: a previous per-request patch/restore built chains
+// of stale wrappers under concurrent or aborted requests, permanently
+// retaining every wrapped request and a copy of every later log line
+// (confirmed production heap leak).
+const origStdoutWrite = process.stdout.write.bind(process.stdout);
+const origStderrWrite = process.stderr.write.bind(process.stderr);
+const origErr = console.error;
+process.stdout.write = ((chunk: any, encoding?: any, cb?: any) => {
+    capture('[STDOUT]', String(chunk).trim());
+    return origStdoutWrite(chunk, encoding, cb);
+}) as any;
+process.stderr.write = ((chunk: any, encoding?: any, cb?: any) => {
+    capture('[STDERR]', String(chunk).trim());
+    return origStderrWrite(chunk, encoding, cb);
+}) as any;
 
 export const logMiddleware = (beginswith?: string[], specifics?: string[]) => (req: Request, res: Response, next: NextFunction) => {
-    // Run the rest of the middleware inside AsyncLocalStorage context
+    // Filter skipped routes BEFORE opening a request context, so nothing is
+    // captured (or saved) for them.
+    if (beginswith && !beginswith.some(p => req.originalUrl.startsWith(p))) return next();
+    if (specifics && specifics.includes(req.originalUrl)) return next();
+    const excluded = ['/logs', '/logs/login', '/logs/:id', '/logs/api', '/logs/auth', '/styles/', '/js/'];
+    if (excluded.some(p => req.originalUrl.startsWith(p))) return next();
+
+    // Run the rest of the request inside AsyncLocalStorage context; the global
+    // stdout/stderr wrappers above route logs into this store.
     asyncLocalStorage.run({ sessionLogs: [] }, () => {
         const startTime = Date.now();
+        const store = asyncLocalStorage.getStore()!;
+        // Grab the ip up front: after a client abort the socket is already
+        // destroyed by save time and req.ip/remoteAddress come back undefined.
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
         const originalSend = res.send;
         let responseBody: any = {};
         res.send = function (body: any) {
             try { responseBody = typeof body === 'string' ? JSON.parse(body) : body; } catch { responseBody = body; }
             return originalSend.apply(res, [body]);
         };
-        // Filter skipped routes
-        if (beginswith && !beginswith.some(p => req.originalUrl.startsWith(p))) return next();
-        if (specifics && specifics.includes(req.originalUrl)) return next();
-        const excluded = ['/logs', '/logs/login', '/logs/:id', '/logs/api', '/logs/auth', '/styles/', '/js/'];
-        if (excluded.some(p => req.originalUrl.startsWith(p))) return next();
-        // Monkey-patch console and process streams to capture logs and any stdout/stderr writes
-        const store = asyncLocalStorage.getStore()!;
-        const origLog = console.log, origErr = console.error, origWarn = console.warn;
-        const origStdoutWrite = process.stdout.write.bind(process.stdout);
-        const origStderrWrite = process.stderr.write.bind(process.stderr);
-        console.log = (...args: any[]) => { store.sessionLogs.push('[LOG] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origLog(...args); };
-        console.error = (...args: any[]) => { store.sessionLogs.push('[ERROR] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origErr(...args); };
-        console.warn = (...args: any[]) => { store.sessionLogs.push('[WARN] ' + args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')); origWarn(...args); };
-        process.stdout.write = ((chunk: any, encoding?: any, cb?: any) => {
-            store.sessionLogs.push('[STDOUT] ' + chunk.toString().trim());
-            return origStdoutWrite(chunk, encoding, cb);
-        }) as any;
-        process.stderr.write = ((chunk: any, encoding?: any, cb?: any) => {
-            store.sessionLogs.push('[STDERR] ' + chunk.toString().trim());
-            return origStderrWrite(chunk, encoding, cb);
-        }) as any;
-        // On response finish, save log including sessionLogs asynchronously
-        res.on('finish', () => {
+
+        // Save exactly once, whether the response completed ('finish') or the
+        // client aborted / connection dropped ('close' without 'finish' —
+        // previously those requests were never saved at all).
+        let saved = false;
+        const saveLog = () => {
+            if (saved) return;
+            saved = true;
             const duration = Date.now() - startTime;
             const logEntry = new ApiLog({
                 method: req.method,
@@ -78,21 +79,15 @@ export const logMiddleware = (beginswith?: string[], specifics?: string[]) => (r
                 requestBody: req.body || {},
                 responseBody: responseBody || {},
                 headers: req.headers,
-                ip: req.ip || req.socket.remoteAddress,
+                ip,
                 date: new Date(),
                 sessionLogs: store.sessionLogs
             });
-
             // Save asynchronously without blocking the response
             logEntry.save().catch(e => origErr('Failed to save API log:', e));
-
-            // Restore console methods immediately after response
-            console.log = origLog;
-            console.error = origErr;
-            console.warn = origWarn;
-            process.stdout.write = origStdoutWrite;
-            process.stderr.write = origStderrWrite;
-        });
+        };
+        res.on('finish', saveLog);
+        res.on('close', saveLog);
         next();
     });
 };
