@@ -40,8 +40,11 @@ const WARN_EVERY_MS = 60 * 1000;
  * database is unavailable, logs are dropped with a warning instead of piling up
  * in the host app's memory.
  */
+export type WrittenListener = (docs: Array<Omit<RawLogEntry, 'requestBody' | 'responseBody' | 'headers'> & { _id: unknown }>) => Promise<void> | void;
+
 export class LogWriter {
     private buffer: RawLogEntry[] = [];
+    private listeners: WrittenListener[] = [];
     private timer: NodeJS.Timeout | null = null;
     private flushing: Promise<void> = Promise.resolve();
     private lastWarnAt = 0;
@@ -83,6 +86,11 @@ export class LogWriter {
     flush(): Promise<void> {
         this.flushing = this.flushing.then(() => this.writeBatch());
         return this.flushing;
+    }
+
+    /** Called with each batch after it is saved (alerts use this). */
+    onWritten(listener: WrittenListener) {
+        this.listeners.push(listener);
     }
 
     stop() {
@@ -143,7 +151,16 @@ export class LogWriter {
             }));
             // Blobs first: a log must never point at a blob that isn't there yet.
             await storeBlobs(Array.from(blobs.values()));
-            await ApiLog.insertMany(docs, { ordered: false });
+            const saved = await ApiLog.insertMany(docs, { ordered: false });
+            if (this.listeners.length) {
+                const written = saved.map(d => d.toObject()) as any;
+                // Not awaited: a slow email provider must never hold up the next batch.
+                for (const listener of this.listeners) {
+                    Promise.resolve()
+                        .then(() => listener(written))
+                        .catch(err => internalWarn('log listener failed:', err));
+                }
+            }
         } catch (err) {
             internalWarn('failed to save API logs:', err);
         }
