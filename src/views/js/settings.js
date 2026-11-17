@@ -1,3 +1,6 @@
+// Values from the server (emails, messages) are always escaped before inserting as HTML.
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 // Handle logout button click
 document.getElementById('logout-btn').addEventListener('click', async () => {
   const res = await fetch('/logs/auth/logout', { method: 'POST' });
@@ -14,7 +17,6 @@ let isCurrentUserAdmin = false;
 
 // Load users on page load
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('DOM loaded, calling loadUsers...'); // Debug log
   
   // Small delay to ensure DOM is fully ready
   setTimeout(async () => {
@@ -22,14 +24,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 100);
 });
 
-// Check if current user is admin
-async function checkAdminStatus() {
-  try {
-    const res = await fetch('/logs/auth/users');
-    return res.ok; // If user can access users endpoint, they're admin
-  } catch (error) {
-    return false;
-  }
+// Current user, from the session
+let me = null;
+async function loadMe() {
+  const res = await fetch('/logs/auth/me');
+  if (res.ok) me = await res.json();
+  return me;
 }
 
 // Remove user function
@@ -57,8 +57,6 @@ async function removeUser(userId) {
   }
 }
 
-// Make removeUser globally available
-window.removeUser = removeUser;
 
 // Load users from server
 async function loadUsers() {
@@ -69,17 +67,11 @@ async function loadUsers() {
     return;
   }
   
-  console.log('Loading users...'); // Debug log
-  
   try {
-    console.log('Making fetch request to /logs/auth/users...'); // Debug log
     const res = await fetch('/logs/auth/users');
-    console.log('Users response status:', res.status); // Debug log
-    console.log('Users response ok:', res.ok); // Debug log
     
     if (!res.ok) {
       if (res.status === 403) {
-        console.log('User is not admin, hiding user management section'); // Debug log
         // Hide user management section if not admin
         document.getElementById('user-management-section').style.display = 'none';
         return;
@@ -88,7 +80,6 @@ async function loadUsers() {
     }
     
     const data = await res.json();
-    console.log('Users data:', data); // Debug log
     currentUsers = data.users;
     await renderUsers();
   } catch (error) {
@@ -99,7 +90,7 @@ async function loadUsers() {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <span>Error loading users: ${error.message}</span>
+          <span>Error loading users: ${escapeHtml(error.message)}</span>
         </div>
       </div>
     `;
@@ -115,8 +106,6 @@ async function renderUsers() {
     return;
   }
   
-  console.log('Rendering users, count:', currentUsers.length); // Debug log
-  
   if (currentUsers.length === 0) {
     usersList.innerHTML = `
       <div class="bg-slate-800/50 rounded-lg p-12 text-center border border-slate-700/50">
@@ -130,10 +119,13 @@ async function renderUsers() {
     return;
   }
 
-  // Check if current user is admin
-  const isAdmin = await checkAdminStatus();
-  
-  usersList.innerHTML = currentUsers.map(user => `
+  if (!me) await loadMe();
+  const statusLabel = { invited: 'Invite pending', 'needs-2fa': 'Sets up 2FA at next sign-in', active: 'Active' };
+
+  usersList.innerHTML = currentUsers.map(user => {
+    const isSelf = me && String(me.id) === String(user._id);
+    const id = escapeHtml(user._id);
+    return `
     <div class="user-list-item">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
@@ -143,16 +135,22 @@ async function renderUsers() {
             </svg>
           </div>
           <div>
-            <p class="font-semibold text-white text-lg">${user.email}</p>
-            <p class="text-sm text-slate-400">${user.role === 'admin' ? 'Administrator' : 'Developer'}</p>
+            <p class="font-semibold text-white text-lg">${escapeHtml(user.email)}${isSelf ? ' <span class="text-sm text-slate-400">(you)</span>' : ''}</p>
+            <p class="text-sm text-slate-400">${escapeHtml(statusLabel[user.status] || user.status)}</p>
           </div>
         </div>
         <div class="flex items-center space-x-4">
           <span class="px-4 py-2 rounded-full text-sm font-medium ${user.role === 'admin' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}">
             ${user.role === 'admin' ? 'Admin' : 'Developer'}
           </span>
-          ${isAdmin && user.role === 'dev' ? `
-            <button onclick="removeUser('${user._id}')" class="text-red-400 hover:text-red-300 transition-colors duration-200 p-2 rounded-lg hover:bg-red-500/10">
+          ${!isSelf && user.status === 'invited' ? `
+            <button data-action="reinvite" data-email="${escapeHtml(user.email)}" class="text-sm text-blue-400 hover:text-blue-300 px-3 py-2 rounded-lg hover:bg-blue-500/10">New link</button>
+          ` : ''}
+          ${!isSelf && user.status === 'active' ? `
+            <button data-action="reset-2fa" data-id="${id}" class="text-sm text-yellow-400 hover:text-yellow-300 px-3 py-2 rounded-lg hover:bg-yellow-500/10">Reset 2FA</button>
+          ` : ''}
+          ${!isSelf && user.role === 'dev' ? `
+            <button data-action="remove" data-id="${id}" title="Remove user" class="text-red-400 hover:text-red-300 transition-colors duration-200 p-2 rounded-lg hover:bg-red-500/10">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
@@ -161,59 +159,61 @@ async function renderUsers() {
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
-// Handle add user form submission
-document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+// Row buttons (event delegation, no inline handlers)
+document.getElementById('users-list').addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+  const { action, id, email } = button.dataset;
+  if (action === 'remove') return removeUser(id);
+  if (action === 'reinvite') return createInviteLink(email);
+  if (action === 'reset-2fa') {
+    if (!confirm('Reset this person\'s authenticator? They will scan a new QR code at their next sign-in.')) return;
+    const res = await fetch(`/logs/auth/users/${encodeURIComponent(id)}/reset-2fa`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    showNotification(data.message || (res.ok ? 'Done' : 'Failed to reset 2FA'), res.ok ? 'success' : 'error');
+    await loadUsers();
+  }
+});
+
+async function createInviteLink(email) {
+  const res = await fetch('/logs/auth/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    showNotification(data.message || 'Failed to create invite', 'error');
+    return false;
+  }
+  document.getElementById('invite-result-email').textContent = data.email;
+  document.getElementById('invite-link').value = window.location.origin + data.path;
+  document.getElementById('invite-result').hidden = false;
+  showNotification('Invite link created. Copy it and send it to them.', 'success');
+  await loadUsers();
+  return true;
+}
+
+document.getElementById('copy-invite-link').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('invite-link').value);
+  showNotification('Link copied', 'success');
+});
+
+// Handle invite form submission
+document.getElementById('invite-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  
-  const formData = new FormData(e.target);
-  const userData = {
-    email: formData.get('email'),
-    password: formData.get('password'),
-    role: 'dev' // Always set as developer
-  };
-
   const submitBtn = e.target.querySelector('button[type="submit"]');
-  const originalText = submitBtn.innerHTML;
-  
+  submitBtn.disabled = true;
   try {
-    // Show loading state
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-      <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-      </svg>
-      <span>Adding...</span>
-    `;
-
-    const res = await fetch('/logs/auth/add-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(userData)
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      // Success - show success message and reload users
-      showNotification('User added successfully!', 'success');
-      e.target.reset();
-      await loadUsers();
-    } else {
-      // Error - show error message
-      showNotification(data.message || 'Failed to add user', 'error');
-    }
+    if (await createInviteLink(new FormData(e.target).get('email'))) e.target.reset();
   } catch (error) {
-    console.error('Error adding user:', error);
-    showNotification('Failed to add user', 'error');
+    showNotification('Failed to create invite', 'error');
   } finally {
-    // Reset button state
     submitBtn.disabled = false;
-    submitBtn.innerHTML = originalText;
   }
 });
 
@@ -260,7 +260,7 @@ function showNotification(message, type = 'info') {
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
       </svg>
-      <span class="font-medium">${message}</span>
+      <span class="font-medium">${escapeHtml(message)}</span>
       <button class="ml-auto text-slate-400 hover:text-white" onclick="this.parentElement.parentElement.remove()">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

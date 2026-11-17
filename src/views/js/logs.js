@@ -1,3 +1,6 @@
+// Logged values come from whoever called the API: always escape before inserting as HTML.
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 document.addEventListener('DOMContentLoaded', () => {
   const limit = 20;
 let currentPage = 1;
@@ -87,21 +90,21 @@ let currentPage = 1;
       tr.className = 'hover:bg-slate-800/30 transition-colors duration-200';
       tr.innerHTML = `
         <td class="px-8 py-6 border-b border-slate-800/50">
-          <span class="px-2 py-1 rounded text-xs font-medium ${methodColor} bg-slate-800/50">${log.method}</span>
+          <span class="px-2 py-1 rounded text-xs font-medium ${methodColor} bg-slate-800/50">${escapeHtml(log.method)}</span>
         </td>
         <td class="px-8 py-6 border-b border-slate-800/50 text-slate-200">
-          <a href="/logs/${log._id}" class="hover:text-blue-400 transition-colors duration-200">${log.endpoint}</a>
+          <a href="/logs/${encodeURIComponent(log._id)}" class="hover:text-blue-400 transition-colors duration-200">${escapeHtml(log.endpoint)}</a>
         </td>
         <td class="px-8 py-6 border-b border-slate-800/50">
           <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColor} ${statusBg} border border-current/20">
-            ${log.status}
+            ${escapeHtml(log.status)}
           </span>
         </td>
         <td class="px-8 py-6 border-b border-slate-800/50 text-slate-300">
           ${new Date(log.date).toLocaleString()}
         </td>
         <td class="px-8 py-6 border-b border-slate-800/50">
-          <a href="/logs/${log._id}" class="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium">
+          <a href="/logs/${encodeURIComponent(log._id)}" class="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium">
             View Details
           </a>
         </td>

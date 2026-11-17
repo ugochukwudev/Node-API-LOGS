@@ -85,31 +85,29 @@
           </div>
         </div>
 
-        <!-- Add User Form -->
+        <!-- Invite Form -->
         <div class="bg-slate-800/50 rounded-lg p-8 mb-8">
-          <h4 class="text-lg font-semibold text-white mb-6">Add New User</h4>
-          <form id="add-user-form" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label for="user-email" class="block text-sm font-medium text-slate-300 mb-3">Email</label>
-                <input type="email" id="user-email" name="email" required 
-                       class="input-modern" placeholder="user@example.com">
-              </div>
-              <div>
-                <label for="user-password" class="block text-sm font-medium text-slate-300 mb-3">Password</label>
-                <input type="password" id="user-password" name="password" required 
-                       class="input-modern" placeholder="Enter password">
-              </div>
+          <h4 class="text-lg font-semibold text-white mb-2">Invite a developer</h4>
+          <p class="text-sm text-slate-400 mb-6">Creates a single-use setup link, valid for 24 hours. Send it to them yourself; they choose their own password and set up two-step sign-in.</p>
+          <form id="invite-form" class="space-y-6">
+            <div>
+              <label for="invite-email" class="block text-sm font-medium text-slate-300 mb-3">Email</label>
+              <input type="email" id="invite-email" name="email" required
+                     class="input-modern" placeholder="dev@company.com">
             </div>
-            <div class="flex justify-end pt-4">
+            <div class="flex justify-end">
               <button type="submit" class="btn-primary flex px-6 py-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                <span>Add User</span>
+                <span>Create invite link</span>
               </button>
             </div>
           </form>
+          <div id="invite-result" hidden class="mt-6 bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+            <p class="text-sm text-slate-300 mb-2">Setup link for <span id="invite-result-email" class="font-semibold text-white"></span>:</p>
+            <div class="flex gap-3 items-center">
+              <input id="invite-link" readonly class="input-modern font-mono text-sm" />
+              <button id="copy-invite-link" type="button" class="btn-primary px-4 py-2">Copy</button>
+            </div>
+          </div>
         </div>
 
         <!-- Users List -->
@@ -150,7 +148,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-slate-800/50 rounded-lg p-6">
             <h4 class="text-sm font-medium text-slate-300 mb-3">Version</h4>
-            <p class="text-lg font-semibold text-white">2.0.0</p>
+            <p class="text-lg font-semibold text-white">3.0.0</p>
           </div>
           <div class="bg-slate-800/50 rounded-lg p-6">
             <h4 class="text-sm font-medium text-slate-300 mb-3">Framework</h4>

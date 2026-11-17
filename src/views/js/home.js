@@ -1,3 +1,6 @@
+// Logged values come from whoever called the API: always escape before inserting as HTML.
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 // Global variable to track current time range
 let currentTimeRange = '24h';
 
@@ -56,9 +59,9 @@ async function loadDashboardData() {
     data.slowEndpoints.forEach(item => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td class="px-4 py-2 border">${item._id}</td>
+        <td class="px-4 py-2 border">${escapeHtml(item._id)}</td>
         <td class="px-4 py-2 border">${(item?.avgTime??0 / 1000).toFixed(3)} s</td>
-        <td class="px-4 py-2 border">${item?.count??0}</td>
+        <td class="px-4 py-2 border">${escapeHtml(item?.count??0)}</td>
       `;
       tableBody.appendChild(row);
     });
@@ -181,9 +184,9 @@ async function loadSlowEndpoints(windowKey = '1d') {
     slowEndpoints.forEach(item => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="px-4 py-2 border text-gray-100">${item._id}</td>
+        <td class="px-4 py-2 border text-gray-100">${escapeHtml(item._id)}</td>
         <td class="px-4 py-2 border text-gray-100">${(item.avgTime / 1000).toFixed(3)} s</td>
-        <td class="px-4 py-2 border text-gray-100">${item.count}</td>
+        <td class="px-4 py-2 border text-gray-100">${escapeHtml(item.count)}</td>
       `;
       tableBody.appendChild(tr);
     });

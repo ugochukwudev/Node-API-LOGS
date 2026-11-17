@@ -6,7 +6,8 @@ import apiRoutes from '../routes/api';
 import authRoutes from '../routes/auth';
 import { verifyToken } from '../middleware/auth';
 import { createIndexes } from '../utils/indexes';
-import { resolveJwtSecret, setJwtSecret } from '../core/config';
+import { resolveAdmins, resolveJwtSecret, setAdmins, setEncryptionKey, setJwtSecret } from '../core/config';
+import { bootstrapAdmins } from '../core/accounts';
 import { configureCore, trackRequest, ipOf } from '../core';
 import { RedactOptions } from '../core/redact';
 import { createRouteFilter, RoutePattern } from '../core/filter';
@@ -45,6 +46,14 @@ export interface ExpressLoggerOptions {
     specifics?: RoutePattern[];
     /** Secret for dashboard sessions. Falls back to the node_api_logger_jwtSecret env var; required. */
     jwtSecret?: string;
+    /** Emails of dashboard admins; required. Everyone else who is invited is a dev. */
+    admins: string[];
+    /**
+     * Key used to encrypt stored secrets such as authenticator keys. Falls back to the
+     * node_api_logger_encryptionKey env var, then to a key derived from jwtSecret
+     * (rotating jwtSecret then means everyone sets up 2FA again).
+     */
+    encryptionKey?: string;
     /** Extra fields to mask, or default fields to stop masking. */
     redact?: RedactOptions;
     /** Largest response body kept per request, in bytes. Default 1 MB. */
@@ -55,16 +64,18 @@ export interface ExpressLoggerOptions {
  * Initializes and configures an Express logger for tracking API requests.
  * Connects to a MongoDB database, sets up middleware for logging, and serves static HTML, CSS, and JS files.
  *
- * Throws if no JWT secret is configured.
+ * Throws if no JWT secret or no admins are configured.
  *
  * @example
  * const express = require('express');
  * const app = express();
- * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', jwtSecret: process.env.LOGS_JWT_SECRET, beginswith: ['/api'], specifics: ['/auth'] });
+ * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', jwtSecret: process.env.LOGS_JWT_SECRET, admins: ['cto@company.com'], beginswith: ['/api'], specifics: ['/auth'] });
  */
-export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, redact, maxBodyBytes }: ExpressLoggerOptions) => {
+export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes }: ExpressLoggerOptions) => {
     // Validate before touching the database or the app.
     setJwtSecret(resolveJwtSecret(jwtSecret));
+    setAdmins(resolveAdmins(admins));
+    setEncryptionKey(encryptionKey);
     configureCore({ redact, maxBodyBytes });
 
     // Configure connection with pooling and performance optimizations
@@ -79,6 +90,7 @@ export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtS
             console.log('node api logger db connected with optimized settings');
             // Create indexes immediately after connection
             await createIndexes();
+            await bootstrapAdmins(line => console.log(line));
         })
         .catch(err => console.error('node api logger db connection error:', err));
 
@@ -98,6 +110,8 @@ export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtS
 
     // Serve static HTML files (login unprotected)
     app.get('/logs/login', (req, res) => res.sendFile(path.join(__dirname, '../../src/views/login.html')));
+    // Invite / setup links (unprotected: the single-use token is the credential)
+    app.get('/logs/invite/:token', (req, res) => res.sendFile(path.join(__dirname, '../../src/views/invite.html')));
     // Dashboard HomePage (protected)
     app.get('/logs', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/logs.html')));
     app.get('/logs/home', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/home.html')));
