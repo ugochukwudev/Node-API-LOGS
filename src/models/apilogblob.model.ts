@@ -7,6 +7,8 @@ import mongoose, { Schema } from 'mongoose';
 export interface IApiLogBlob {
     _id: string;
     data: any;
+    /** Start of the content as text, for body search. */
+    text: string;
     size: number;
     createdAt: Date;
     lastSeenAt: Date;
@@ -15,12 +17,16 @@ export interface IApiLogBlob {
 const ApiLogBlobSchema = new Schema<IApiLogBlob>({
     _id: { type: String, required: true },
     data: { type: Schema.Types.Mixed },
+    text: { type: String, default: '' },
     size: { type: Number, required: true },
     createdAt: { type: Date, required: true },
     // Refreshed every time a new log reuses this blob; orphan cleanup only
     // deletes blobs not seen recently, so it can't race a log being written.
     lastSeenAt: { type: Date, required: true },
 }, { versionKey: false, minimize: false });
+
+// Body search only looks at blobs used during the searched period.
+ApiLogBlobSchema.index({ lastSeenAt: -1 });
 
 const ApiLogBlob = mongoose.model<IApiLogBlob>('ApiLogBlob', ApiLogBlobSchema);
 

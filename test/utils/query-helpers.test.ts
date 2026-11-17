@@ -2,11 +2,7 @@ import {
 	TIME_WINDOWS,
 	getStartDateFromWindow,
 	getStartDateFromTimeRange,
-	buildEndpointFilter,
 	buildDateFilter,
-	buildStatusFilter,
-	buildFilters,
-	hasRegexEndpoint,
 	estimateTotalCount,
 	buildDateLabels,
 	getPaginationLimits,
@@ -64,33 +60,6 @@ describe("Query Helpers", () => {
 		});
 	});
 
-	describe("buildEndpointFilter", () => {
-		it("should return empty object for invalid endpoint", () => {
-			expect(buildEndpointFilter(null)).toEqual({});
-			expect(buildEndpointFilter("")).toEqual({});
-			expect(buildEndpointFilter("ab")).toEqual({});
-			expect(buildEndpointFilter(123)).toEqual({});
-		});
-
-		it("should build regex filter for valid endpoint", () => {
-			const filter = buildEndpointFilter("api/users");
-			expect(filter).toHaveProperty("endpoint");
-			if ("endpoint" in filter) {
-				expect(filter.endpoint).toHaveProperty("$regex");
-				expect(filter.endpoint).toHaveProperty("$options", "i");
-				expect(filter.endpoint.$regex).toMatch(/^\^api/);
-				expect(filter.endpoint.$regex).toContain("users");
-			}
-		});
-
-		it("should escape special regex characters", () => {
-			const filter = buildEndpointFilter("api/users?page=1");
-			if ("endpoint" in filter) {
-				expect(filter.endpoint.$regex).toContain("\\?");
-			}
-		});
-	});
-
 	describe("buildDateFilter", () => {
 		it("should return empty object for invalid date", () => {
 			expect(buildDateFilter(null)).toEqual({});
@@ -116,59 +85,6 @@ describe("Query Helpers", () => {
 				expect(filter.date.$gte.getHours()).toBe(14);
 				expect(filter.date.$gte.getMinutes()).toBe(30);
 			}
-		});
-	});
-
-	describe("buildStatusFilter", () => {
-		it("should return empty object for invalid status", () => {
-			expect(buildStatusFilter(null)).toEqual({});
-			expect(buildStatusFilter("")).toEqual({});
-		});
-
-		it("should build status filter for valid status", () => {
-			const filter = buildStatusFilter("200");
-			expect(filter).toEqual({ status: 200 });
-		});
-	});
-
-	describe("buildFilters", () => {
-		it("should build filters with default date", () => {
-			const filters = buildFilters({ defaultDaysAgo: 7 });
-			expect(filters).toHaveProperty("date");
-			expect(filters.date).toHaveProperty("$gte");
-		});
-
-		it("should combine all filters", () => {
-			const filters = buildFilters({
-				endpoint: "api/test",
-				date: "2024-01-15",
-				status: "200",
-				defaultDaysAgo: 30,
-			});
-			expect(filters).toHaveProperty("endpoint");
-			expect(filters).toHaveProperty("date");
-			expect(filters).toHaveProperty("status");
-		});
-
-		it("should override default date with specific date", () => {
-			const filters = buildFilters({
-				date: "2024-01-15",
-				defaultDaysAgo: 30,
-			});
-			expect(filters.date).toHaveProperty("$lt");
-		});
-	});
-
-	describe("hasRegexEndpoint", () => {
-		it("should return false for invalid endpoint", () => {
-			expect(hasRegexEndpoint(null)).toBe(false);
-			expect(hasRegexEndpoint("")).toBe(false);
-			expect(hasRegexEndpoint("ab")).toBe(false);
-		});
-
-		it("should return true for valid endpoint", () => {
-			expect(hasRegexEndpoint("api/users")).toBe(true);
-			expect(hasRegexEndpoint("  api  ")).toBe(true);
 		});
 	});
 

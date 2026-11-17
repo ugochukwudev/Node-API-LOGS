@@ -18,8 +18,12 @@ export const stableStringify = (value: unknown): string => {
 export interface PreparedBlob {
     hash: string;
     data: unknown;
+    text: string;
     size: number;
 }
+
+// Body text search covers the first 32 KB of each stored body.
+export const SEARCH_TEXT_CHARS = 32 * 1024;
 
 /** Hash a value for storage. Missing values get no blob (null ref). */
 export const prepareBlob = (value: unknown): PreparedBlob | null => {
@@ -28,6 +32,7 @@ export const prepareBlob = (value: unknown): PreparedBlob | null => {
     return {
         hash: crypto.createHash('sha256').update(json).digest('hex'),
         data: value,
+        text: (typeof value === 'string' ? value : json).slice(0, SEARCH_TEXT_CHARS),
         size: Buffer.byteLength(json),
     };
 };
@@ -41,7 +46,7 @@ export const storeBlobs = async (blobs: PreparedBlob[]) => {
             updateOne: {
                 filter: { _id: b.hash },
                 update: {
-                    $setOnInsert: { data: b.data, size: b.size, createdAt: now },
+                    $setOnInsert: { data: b.data, text: b.text, size: b.size, createdAt: now },
                     $set: { lastSeenAt: now },
                 },
                 upsert: true,

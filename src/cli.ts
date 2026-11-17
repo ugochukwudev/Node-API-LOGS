@@ -3,8 +3,11 @@ import mongoose from 'mongoose';
 import User from './models/user.model';
 import { createInvite, resetTwoFactor } from './core/accounts';
 import { normalizeEmail } from './core/config';
+import { maskStoredLogs } from './core/migrate';
+import { cleanupOrphanBlobs } from './core/blobs';
+import { createRedactor } from './core/redact';
 
-const USAGE = `node-api-logs: server-side account recovery
+const USAGE = `node-api-logs: server-side maintenance
 
 Usage:
   npx node-api-logs invite <email>     Print a single-use setup link (24h). Works for new
@@ -12,6 +15,10 @@ Usage:
                                        password and set up their authenticator again.
   npx node-api-logs reset-2fa <email>  Clear someone's authenticator; they set it up again
                                        at their next sign-in (password unchanged).
+  npx node-api-logs mask-old-logs      Mask passwords, tokens and auth headers in logs saved
+                                       before v3, and move their bodies to store-once storage.
+                                       Use --add bvn,nin / --remove pin to match your config.
+  npx node-api-logs cleanup-bodies     Delete stored bodies that no log uses any more.
 
 Options:
   --mongo-uri <uri>   Logs database (or set MONGODB_URI / node_api_logger_mongoUri)
@@ -25,7 +32,9 @@ const argValue = (args: string[], flag: string) => {
 export const run = async (argv: string[], print: (line: string) => void = console.log): Promise<number> => {
     const [command, rawEmail] = argv;
     const email = normalizeEmail(rawEmail);
-    if (!command || command === '--help' || command === '-h' || !['invite', 'reset-2fa'].includes(command) || !email) {
+    const needsEmail = ['invite', 'reset-2fa'].includes(command);
+    const known = needsEmail || ['mask-old-logs', 'cleanup-bodies'].includes(command);
+    if (!command || command === '--help' || command === '-h' || !known || (needsEmail && !email)) {
         print(USAGE);
         return command === '--help' || command === '-h' ? 0 : 1;
     }
@@ -43,6 +52,18 @@ export const run = async (argv: string[], print: (line: string) => void = consol
         await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
     }
     try {
+        if (command === 'mask-old-logs') {
+            const list = (flag: string) => (argValue(argv, flag) || '').split(',').map(v => v.trim()).filter(Boolean);
+            const redactor = createRedactor({ add: list('--add'), remove: list('--remove') });
+            const count = await maskStoredLogs(redactor, done => print(`  ${done} logs processed...`));
+            print(`Done. ${count} log(s) from before v3 were masked.`);
+            return 0;
+        }
+        if (command === 'cleanup-bodies') {
+            const deleted = await cleanupOrphanBlobs();
+            print(`Done. ${deleted} unused stored bod${deleted === 1 ? 'y was' : 'ies were'} deleted.`);
+            return 0;
+        }
         if (command === 'invite') {
             const invite = await createInvite(email);
             print(`Setup link for ${email} (valid 24h, single use):`);
