@@ -12,6 +12,7 @@ import {
 	TIME_WINDOWS,
 } from "../utils/query-helpers";
 import { handleError, handleTimeoutError } from "../utils/error-handlers";
+import { hydrateLog } from "../core/blobs";
 
 export const getLogs = async (req: Request, res: Response) => {
 	const { page, limit, endpoint, date, time, status } = req.query;
@@ -83,9 +84,9 @@ export const getLogById = async (req: Request, res: Response) => {
 	const { id } = req.params;
 
 	try {
-		const log = await ApiLog.findById(id);
+		const log = await ApiLog.findById(id).lean();
 		if (!log) return res.status(404).json({ message: "Log not found" });
-		res.json({ log });
+		res.json({ log: await hydrateLog(log) });
 	} catch (error) {
 		handleError(error, res, "getLogById");
 	}

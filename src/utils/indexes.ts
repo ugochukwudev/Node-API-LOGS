@@ -20,7 +20,11 @@ export const createIndexes = async () => {
             { key: { endpoint: 1, date: -1 }, name: 'endpoint_asc_date_desc' },
             { key: { status: 1, date: -1 }, name: 'status_asc_date_desc' },
             { key: { responseTime: -1 }, name: 'response_time_desc' },
-            { key: { endpoint: 'text' }, name: 'endpoint_text' }
+            { key: { endpoint: 'text' }, name: 'endpoint_text' },
+            // Orphan-blob cleanup looks logs up by the blobs they reference
+            { key: { requestBodyRef: 1 }, name: 'request_body_ref' },
+            { key: { responseBodyRef: 1 }, name: 'response_body_ref' },
+            { key: { headersRef: 1 }, name: 'headers_ref' },
         ];
 
         for (const config of indexConfigs) {

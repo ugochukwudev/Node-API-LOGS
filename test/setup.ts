@@ -55,4 +55,4 @@ if (needsDatabase) {
 
 // Set test environment variables
 process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = "test-secret-key-for-jwt";
+process.env.node_api_logger_jwtSecret = "test-secret-key-for-jwt";

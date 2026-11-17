@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import User from '../models/user.model';
 import { Document } from 'mongoose';
+import { getJwtSecret } from '../core/config';
 
 interface UserSchema {
     role: 'admin' | 'dev';
@@ -10,14 +11,13 @@ interface UserSchema {
     password: string;
 }
 
-const jwtSecret = process.env.node_api_logger_jwtSecret || "your_secret_key";
 const hashPassword = async (password: string) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     return hashedPassword;
 }
 
 const generateToken = (user: Document<unknown, {}, UserSchema> & UserSchema, res: Response) => {
-    const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, role: user.role }, getJwtSecret(), { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true });
     return;
 }
@@ -32,7 +32,7 @@ export const loginUser = async (req: Request, res: Response) => {
             const user = new User({ email, password: hashedPassword, role: 'admin' });
             await user.save();
             generateToken(user, res);
-            res.json({ message: 'Logged in successfully' });
+            return res.json({ message: 'Logged in successfully' });
         }
         let user = await User.findOne({ email });
         if (!user) {
