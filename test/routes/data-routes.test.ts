@@ -6,6 +6,7 @@ import apiRoutes from "../../src/routes/api";
 import ApiLog from "../../src/models/apilogs.model";
 import { getJwtSecret } from "../../src/core/config";
 import { writeLogs } from "../helpers/write-logs";
+import { trackJob } from "../../src/jobs";
 
 const app = express();
 app.use(cookieParser());
@@ -62,5 +63,24 @@ describe("data routes", () => {
 		const after = await request(app).get("/logs/api/metrics?timeRange=24h").set("Cookie", session("dev")).expect(200);
 		expect(after.body.totalRequests).toBe(before.body.totalRequests);
 		expect(after.body.errorCount).toBe(1);
+	});
+
+	it("lists jobs with status counts and shows one job with its payload and result", async () => {
+		await trackJob("send-invoice", { orderId: 1, token: "t" }, async () => ({ sent: true }));
+		await trackJob("explode", {}, async () => { throw new Error("boom"); }).catch(() => {});
+
+		const list = await request(app).get("/logs/api/jobs").set("Cookie", session("dev")).expect(200);
+		expect(list.body.total).toBe(2);
+		expect(list.body.counts).toEqual({ completed: 1, failed: 1 });
+		expect(list.body.jobs[0].sessionLogs).toBeUndefined();
+
+		const failed = await request(app).get("/logs/api/jobs?status=failed").set("Cookie", session("dev")).expect(200);
+		expect(failed.body.jobs.map((j: any) => j.name)).toEqual(["explode"]);
+
+		const id = list.body.jobs.find((j: any) => j.name === "send-invoice")._id;
+		const one = await request(app).get(`/logs/api/jobs/${id}`).set("Cookie", session("dev")).expect(200);
+		expect(one.body.job.payload).toEqual({ orderId: 1, token: "********" });
+		expect(one.body.job.result).toEqual({ sent: true });
+		await request(app).get("/logs/api/jobs/not-an-id").set("Cookie", session("dev")).expect(404);
 	});
 });

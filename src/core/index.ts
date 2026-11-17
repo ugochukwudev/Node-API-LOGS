@@ -1,4 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http';
+import { Types } from 'mongoose';
 import { captureResponseBody, DEFAULT_MAX_BODY_BYTES, runWithCapture } from './capture';
 import { createRedactor, RedactOptions } from './redact';
 import { LogWriter } from './writer';
@@ -47,6 +48,7 @@ export const trackRequest = (res: ServerResponse, info: RequestInfo, next: () =>
         if (saved) return;
         saved = true;
         state.writer.enqueue({
+            _id: store.requestLogId,
             method: info.method,
             endpoint: info.url,
             status: res.statusCode,
@@ -62,6 +64,6 @@ export const trackRequest = (res: ServerResponse, info: RequestInfo, next: () =>
     res.on('finish', save);
     res.on('close', save);
     next();
-});
+}, { requestLogId: new Types.ObjectId().toHexString() });
 
 export const ipOf = (req: IncomingMessage) => req.socket?.remoteAddress || 'unknown';

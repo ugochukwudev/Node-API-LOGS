@@ -6,6 +6,8 @@ import { Redactor } from './redact';
 
 /** A finished request as captured, before masking or storage. */
 export interface RawLogEntry {
+    /** Pre-assigned so jobs queued during the request can link to it. */
+    _id?: string;
     method: string;
     endpoint: string;
     status: number;
@@ -126,6 +128,7 @@ export class LogWriter {
                 return blob.hash;
             };
             const docs = batch.map(e => ({
+                ...(e._id ? { _id: e._id } : {}),
                 method: e.method,
                 endpoint: this.redactor.url(e.endpoint),
                 status: e.status,

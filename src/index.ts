@@ -4,3 +4,4 @@ export { cleanupOrphanBlobs } from './core/blobs';
 export { DEFAULT_SENSITIVE_FIELDS, DEFAULT_SENSITIVE_HEADERS } from './core/redact';
 export type { RedactOptions } from './core/redact';
 export type { RoutePattern } from './core/filter';
+export { trackJob, trackBullQueue, trackBullMQQueue, bullmqProcessor, trackAgenda, trackPgBoss } from './jobs';

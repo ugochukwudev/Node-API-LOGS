@@ -4,6 +4,8 @@ import zlib from 'zlib';
 
 export interface CaptureStore {
     sessionLogs: string[];
+    /** _id the current request's log will be saved under, so queued jobs can link to it. */
+    requestLogId?: string;
 }
 
 // Holds the current request's (or job's) console output.
@@ -45,10 +47,13 @@ process.stderr.write = ((chunk: any, encoding?: any, cb?: any) => {
 }) as any;
 
 /** Run fn with a fresh capture context; console output inside lands in the returned store. */
-export const runWithCapture = <T>(fn: (store: CaptureStore) => T): T => {
-    const store: CaptureStore = { sessionLogs: [] };
+export const runWithCapture = <T>(fn: (store: CaptureStore) => T, init: Partial<CaptureStore> = {}): T => {
+    const store: CaptureStore = { sessionLogs: [], ...init };
     return asyncLocalStorage.run(store, () => fn(store));
 };
+
+/** The log id of the request currently running, if any. */
+export const currentRequestLogId = () => asyncLocalStorage.getStore()?.requestLogId;
 
 /** Run fn outside any request context, so the logger's own work is never captured into a request. */
 export const runOutsideCapture = <T>(fn: () => T): T => asyncLocalStorage.exit(fn);
