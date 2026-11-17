@@ -1,22 +1,11 @@
 import { Application, Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
-import { createIndexes } from '../utils/indexes';
-import {
-    getDashboardBasePath, resolveAdmins, resolveJwtSecret, setAdmins, setDashboardBasePath, setEncryptionKey, setJwtSecret,
-} from '../core/config';
-import { bootstrapAdmins } from '../core/accounts';
-import { configureCore, getWriter, trackRequest, ipOf } from '../core';
-import { evaluateLogs, startAlertTimers } from '../alerts/engine';
-import { SendEmailFn, setCustomSender } from '../alerts/email';
-import { RedactOptions } from '../core/redact';
+import { getDashboardBasePath } from '../core/config';
+import { trackRequest, ipOf } from '../core';
 import { createRouteFilter, RoutePattern } from '../core/filter';
-import { createDashboard, normalizeBasePath } from '../dashboard/server';
+import { initLogger, LoggerOptions } from '../core/setup';
 
-export const logMiddleware = (beginswith?: string[], specifics?: RoutePattern[]) => {
-    // The dashboard's own pages and API are never logged.
-    const shouldLog = createRouteFilter({ beginswith, specifics, internalPrefixes: [getDashboardBasePath()] });
-
-    return (req: Request, res: Response, next: NextFunction) => {
+const expressMiddleware = (shouldLog: (url: string) => boolean) =>
+    (req: Request, res: Response, next: NextFunction) => {
         // Filter skipped routes BEFORE opening a request context, so nothing is
         // captured (or saved) for them.
         if (!shouldLog(req.originalUrl)) return next();
@@ -31,79 +20,34 @@ export const logMiddleware = (beginswith?: string[], specifics?: RoutePattern[])
             getBody: () => req.body,
         }, next);
     };
-};
 
-export interface ExpressLoggerOptions {
+/** Just the request logging, for apps that set up the dashboard separately. */
+export const logMiddleware = (beginswith?: string[], specifics?: RoutePattern[]) =>
+    expressMiddleware(createRouteFilter({ beginswith, specifics, internalPrefixes: [getDashboardBasePath()] }));
+
+export interface ExpressLoggerOptions extends LoggerOptions {
     /** The Express.js application instance. */
     app: Application;
-    /** MongoDB connection string where the API requests will be stored. */
-    mongoUri: string;
-    /** Only log request paths starting with one of these prefixes. */
-    beginswith?: string[];
-    /** Never log paths matching these: exact paths, prefixes ending in '*', or RegExps. */
-    specifics?: RoutePattern[];
-    /** Secret for dashboard sessions. Falls back to the node_api_logger_jwtSecret env var; required. */
-    jwtSecret?: string;
-    /** Emails of dashboard admins; required. Everyone else who is invited is a dev. */
-    admins: string[];
-    /**
-     * Key used to encrypt stored secrets such as authenticator keys. Falls back to the
-     * node_api_logger_encryptionKey env var, then to a key derived from jwtSecret
-     * (rotating jwtSecret then means everyone sets up 2FA again).
-     */
-    encryptionKey?: string;
-    /** Extra fields to mask, or default fields to stop masking. */
-    redact?: RedactOptions;
-    /** Largest response body kept per request, in bytes. Default 1 MB. */
-    maxBodyBytes?: number;
-    alerts?: {
-        /** Send alert emails with your own code instead of a provider set up in the dashboard. */
-        sendEmail?: SendEmailFn;
-    };
-    /** Where the dashboard lives in your app. Default `/logs`. */
-    dashboardPath?: string;
 }
 
 /**
- * Initializes and configures an Express logger for tracking API requests.
- * Connects to MongoDB, logs requests, and serves the dashboard at `dashboardPath` (default /logs).
+ * Log an Express app's requests and serve the dashboard at `dashboardPath`
+ * (default /logs). Add it before your routes.
  *
  * Throws if no JWT secret or no admins are configured.
  *
  * @example
- * const express = require('express');
- * const app = express();
- * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', jwtSecret: process.env.LOGS_JWT_SECRET, admins: ['cto@company.com'], beginswith: ['/api'], specifics: ['/auth'] });
+ * createExpressLogger({
+ *   app,
+ *   mongoUri: process.env.MONGODB_URI,
+ *   jwtSecret: process.env.LOGS_JWT_SECRET,
+ *   admins: ['cto@company.com'],
+ *   beginswith: ['/api'],
+ * });
  */
-export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes, alerts, dashboardPath }: ExpressLoggerOptions) => {
-    // Validate before touching the database or the app.
-    setJwtSecret(resolveJwtSecret(jwtSecret));
-    setAdmins(resolveAdmins(admins));
-    setEncryptionKey(encryptionKey);
-    const base = normalizeBasePath(dashboardPath);
-    setDashboardBasePath(base);
-    configureCore({ redact, maxBodyBytes });
-    setCustomSender(alerts?.sendEmail);
-    getWriter().onWritten(logs => evaluateLogs(logs));
-
-    // Configure connection with pooling and performance optimizations
-    mongoose.connect(mongoUri, {
-        maxPoolSize: 10, // Maintain up to 10 socket connections
-        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-        compressors: 'zlib', // Use compression
-    })
-        .then(async () => {
-            console.log('node api logger db connected with optimized settings');
-            // Create indexes immediately after connection
-            await createIndexes();
-            await bootstrapAdmins(line => console.log(line));
-            startAlertTimers();
-        })
-        .catch(err => console.error('node api logger db connection error:', err));
-
+export const createExpressLogger = ({ app, ...options }: ExpressLoggerOptions) => {
+    const { dashboard, shouldLog } = initLogger(options);
     // Logging first, so it sees every request; the dashboard only answers under its path.
-    app.use(logMiddleware(beginswith, specifics));
-    app.use(createDashboard(base));
+    app.use(expressMiddleware(shouldLog));
+    app.use(dashboard);
 };

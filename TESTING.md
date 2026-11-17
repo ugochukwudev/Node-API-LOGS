@@ -1,119 +1,24 @@
-# Testing Infrastructure
-
-## Overview
-
-This package now includes a comprehensive, reliable test suite using **Jest** to ensure critical functionality works correctly as companies begin to rely on this package.
-
-## Quick Start
+# Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Watch mode for development
+npm test               # everything
 npm run test:watch
-
-# Coverage report
 npm run test:coverage
-
-# CI mode (optimized for continuous integration)
-npm run test:ci
+npm run build          # server (tsc) + dashboard bundle (esbuild); also type-checks the UI
 ```
 
-## Test Coverage
+Tests use Jest with an in-memory MongoDB (`mongodb-memory-server`), started in `test/setup.ts` and wiped after each test.
 
-### ✅ Utilities (26 tests)
-- **Query Helpers**: Time windows, date calculations, filter building, pagination
-- **Error Handlers**: Timeout handling, error responses
+| Folder | Covers |
+| --- | --- |
+| `test/core` | masking, route filters, store-once bodies, search, export (CSV/XLSX/SQLite/JSON Lines), deleting with summaries, TOTP and encryption |
+| `test/adapters` | Express, Fastify and NestJS (Express and Fastify platforms) end to end |
+| `test/auth` | sign-in with 2FA, invites, lockout, backup codes, recovery CLI |
+| `test/alerts` | every email provider's request, SMTP, rules, flood control, daily summary |
+| `test/jobs` | job tracking, and real Bull, BullMQ, Agenda and pg-boss |
+| `test/routes`, `test/controllers` | dashboard API permissions and responses |
+| `test/dashboard` | dashboard shell, security headers, mount path |
 
-### ✅ API Controllers (Integration Tests)
-- **getLogs**: Pagination, filtering, regex endpoint handling, error cases
-- **getLogById**: Single log retrieval, 404 handling
-- **getMetrics**: Time range calculations, aggregations
-- **getStatusDistribution**: Status code grouping with filters
-- **getSystemStats**: System resource monitoring
-- **getStatusTrends**: Time window trends and labels
-- **getSlowEndpoints**: Performance analysis
+Some libraries are ESM-only (Agenda 6, pg-boss 12, NestJS 12). Their tests run in a child Node process against a compiled copy of the package (`test/helpers/child-scenario.ts`).
 
-## Test Infrastructure
-
-### Database
-- Uses **MongoDB Memory Server** for isolated testing
-- No external dependencies required
-- Automatic setup/teardown
-- Fast execution
-
-### Test Helpers
-Reusable utilities in `test/helpers/test-helpers.ts`:
-- `createMockRequest()` - Mock Express requests
-- `createMockResponse()` - Mock Express responses
-- `createTestLogs()` - Generate test data
-- `getResponseData()` - Extract response data
-- `getStatusCode()` - Get HTTP status codes
-
-## CI/CD Ready
-
-GitHub Actions workflow included (`.github/workflows/test.yml`):
-- Runs on Node.js 18.x and 20.x
-- Automated test execution
-- Coverage reporting
-- Ready for production CI/CD pipelines
-
-## Reliability Features
-
-1. **Isolated Tests**: Each test is independent with clean database state
-2. **Type Safety**: Full TypeScript support with type checking
-3. **Error Handling**: Comprehensive error scenario testing
-4. **Edge Cases**: Tests cover boundary conditions and invalid inputs
-5. **Performance**: Tests complete in <60 seconds
-
-## Test Structure
-
-```
-test/
-├── setup.ts                    # Database setup/teardown
-├── helpers/
-│   └── test-helpers.ts         # Reusable test utilities
-├── utils/                      # Unit tests
-│   ├── query-helpers.test.ts   # 26 tests
-│   └── error-handlers.test.ts  # 5 tests
-└── controllers/                # Integration tests
-    └── api.test.ts             # API endpoint tests
-```
-
-## Best Practices
-
-1. **Always test critical paths** - Query helpers, error handling
-2. **Test edge cases** - Invalid inputs, boundary conditions
-3. **Mock external dependencies** - Keep tests fast and isolated
-4. **Maintain >80% coverage** - Especially on critical utilities
-5. **Run tests before commits** - Use `npm run test:watch` during development
-
-## Troubleshooting
-
-### MongoDB Memory Server Issues
-- First run downloads MongoDB binary (~70MB)
-- Ensure sufficient disk space
-- Check network connectivity
-
-### Type Errors
-```bash
-npm run build  # Verify TypeScript compilation
-```
-
-## Next Steps
-
-As the API grows, add tests for:
-- New endpoints
-- New utility functions
-- Edge cases discovered in production
-- Performance regressions
-
-## Contributing
-
-When adding new features:
-1. Write tests first (TDD approach)
-2. Ensure all tests pass
-3. Check coverage report
-4. Update this document if needed
-
+The Redis tests (Bull, BullMQ) run when `redis-server` is installed, and the Postgres test (pg-boss) runs when `initdb` and `pg_ctl` are installed on Node 22.12+. Otherwise they're skipped, as on CI. The NestJS tests need Node 20+.

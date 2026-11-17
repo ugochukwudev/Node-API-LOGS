@@ -5,6 +5,7 @@ import path from "path";
 import net from "net";
 import mongoose from "mongoose";
 import JobLog from "../../src/models/joblog.model";
+import { cleanupScenarios, runScenario } from "../helpers/child-scenario";
 import { trackBullQueue, trackBullMQQueue, bullmqProcessor, trackAgenda, trackPgBoss } from "../../src/jobs";
 
 // Real-library checks. Redis and Postgres tests run only where those servers
@@ -88,53 +89,14 @@ const nodeAtLeast = (major: number, minor: number) =>
 	});
 });
 
-// Agenda 6 and pg-boss 12 are ESM-only, which Jest's CommonJS loader can't
-// import, so those scenarios run in a child Node process against the compiled
-// package, writing to the same test database.
-const ROOT = path.resolve(__dirname, "../..");
-let distDir: string;
-
-const buildDist = () => {
-	if (distDir) return distDir;
-	// Inside the project so the compiled files resolve its node_modules.
-	distDir = fs.mkdtempSync(path.join(ROOT, ".test-dist-"));
-	const tsc = spawnSync(process.execPath, [require.resolve("typescript/bin/tsc"), "-p", ROOT, "--outDir", distDir], { encoding: "utf8" });
-	if (tsc.status !== 0) throw new Error(tsc.stdout + tsc.stderr);
-	return distDir;
-};
-
-const runScenario = (body: string, env: Record<string, string> = {}) => {
-	const dist = buildDist();
-	const file = path.join(dist, `scenario-${Date.now()}.mjs`);
-	const { host, port, name } = mongoose.connection;
-	fs.writeFileSync(
-		file,
-		`import { createRequire } from "module";
-const require = createRequire(${JSON.stringify(path.join(ROOT, "package.json"))});
-const mongoose = require("mongoose");
-const jobs = require(${JSON.stringify(path.join(dist, "jobs/index.js"))});
-await mongoose.connect(${JSON.stringify(`mongodb://${host}:${port}/${name}`)});
-const waitFor = async (check) => { for (let i = 0; i < 150; i++) { if (await check()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error("timed out"); };
-const JobLog = mongoose.model("ApiJobLog");
-try {
-${body}
-} finally {
-  await mongoose.disconnect();
-}
-`
-	);
-	const result = spawnSync(process.execPath, [file], { cwd: ROOT, encoding: "utf8", env: { ...process.env, ...env }, timeout: 60000 });
-	if (result.status !== 0) throw new Error(result.stdout + result.stderr);
-};
-
-afterAll(() => {
-	if (distDir) fs.rmSync(distDir, { recursive: true, force: true });
-});
+afterAll(() => cleanupScenarios());
 
 describe("with Agenda", () => {
 	it("records now() jobs and their runs", async () => {
 		const { host, port } = mongoose.connection;
 		runScenario(`
+const jobs = require(dist + "/jobs/index.js");
+const JobLog = mongoose.model("ApiJobLog");
 const { Agenda } = await import("agenda");
 const { MongoBackend } = await import("@agendajs/mongo-backend");
 const agenda = jobs.trackAgenda(new Agenda({ backend: new MongoBackend({ address: ${JSON.stringify(`mongodb://${host}:${port}/agenda-test`)} }), processEvery: 100 }));
@@ -170,6 +132,8 @@ await agenda.stop();
 
 	it("pg-boss: send is recorded and the worker run completes", async () => {
 		runScenario(`
+const jobs = require(dist + "/jobs/index.js");
+const JobLog = mongoose.model("ApiJobLog");
 const { PgBoss } = await import("pg-boss");
 const boss = jobs.trackPgBoss(new PgBoss("postgres://postgres@127.0.0.1:${port}/postgres"));
 boss.on("error", () => {});

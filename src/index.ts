@@ -1,7 +1,11 @@
 export { createExpressLogger, logMiddleware } from './adapters/express';
 export type { ExpressLoggerOptions } from './adapters/express';
+export { fastifyLogger } from './adapters/fastify';
+export { setupNestLogger } from './adapters/nestjs';
+export type { LoggerOptions } from './core/setup';
 export { cleanupOrphanBlobs } from './core/blobs';
 export { DEFAULT_SENSITIVE_FIELDS, DEFAULT_SENSITIVE_HEADERS } from './core/redact';
 export type { RedactOptions } from './core/redact';
 export type { RoutePattern } from './core/filter';
+export type { SendEmailFn, EmailMessage } from './alerts/email';
 export { trackJob, trackBullQueue, trackBullMQQueue, bullmqProcessor, trackAgenda, trackPgBoss } from './jobs';
