@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import { AddressInfo } from "net";
 import ApiLog from "../../src/models/apilogs.model";
-import { logMiddleware } from "../../src/middleware/log";
+import { logMiddleware } from "../../src/adapters/express";
 
 // Regression tests for the production heap leak: logMiddleware used to patch
 // console/process.stdout PER REQUEST and restore on 'finish'. Concurrent or

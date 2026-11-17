@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const jwtSecret = process.env.node_api_logger_jwtSecret || "your_secret_key";
+import { getJwtSecret } from '../core/config';
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies.token;
@@ -13,7 +12,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
     }
 
     try {
-        const decoded = jwt.verify(token, jwtSecret) as { id: string; role: string };
+        const decoded = jwt.verify(token, getJwtSecret()) as { id: string; role: string };
         (req as any).user = decoded;
         next();
     } catch (error) {
