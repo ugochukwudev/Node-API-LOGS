@@ -1,25 +1,20 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import { Application, Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
-import cookieParser from 'cookie-parser';
-import path from 'path';
-import apiRoutes from '../routes/api';
-import authRoutes from '../routes/auth';
-import { verifyToken } from '../middleware/auth';
 import { createIndexes } from '../utils/indexes';
-import { resolveAdmins, resolveJwtSecret, setAdmins, setEncryptionKey, setJwtSecret } from '../core/config';
+import {
+    getDashboardBasePath, resolveAdmins, resolveJwtSecret, setAdmins, setDashboardBasePath, setEncryptionKey, setJwtSecret,
+} from '../core/config';
 import { bootstrapAdmins } from '../core/accounts';
-import { getWriter } from '../core';
+import { configureCore, getWriter, trackRequest, ipOf } from '../core';
 import { evaluateLogs, startAlertTimers } from '../alerts/engine';
 import { SendEmailFn, setCustomSender } from '../alerts/email';
-import { configureCore, trackRequest, ipOf } from '../core';
 import { RedactOptions } from '../core/redact';
 import { createRouteFilter, RoutePattern } from '../core/filter';
-
-// The logger's own dashboard, API and static assets are never logged.
-export const INTERNAL_PREFIXES = ['/logs', '/styles', '/js'];
+import { createDashboard, normalizeBasePath } from '../dashboard/server';
 
 export const logMiddleware = (beginswith?: string[], specifics?: RoutePattern[]) => {
-    const shouldLog = createRouteFilter({ beginswith, specifics, internalPrefixes: INTERNAL_PREFIXES });
+    // The dashboard's own pages and API are never logged.
+    const shouldLog = createRouteFilter({ beginswith, specifics, internalPrefixes: [getDashboardBasePath()] });
 
     return (req: Request, res: Response, next: NextFunction) => {
         // Filter skipped routes BEFORE opening a request context, so nothing is
@@ -65,11 +60,13 @@ export interface ExpressLoggerOptions {
         /** Send alert emails with your own code instead of a provider set up in the dashboard. */
         sendEmail?: SendEmailFn;
     };
+    /** Where the dashboard lives in your app. Default `/logs`. */
+    dashboardPath?: string;
 }
 
 /**
  * Initializes and configures an Express logger for tracking API requests.
- * Connects to a MongoDB database, sets up middleware for logging, and serves static HTML, CSS, and JS files.
+ * Connects to MongoDB, logs requests, and serves the dashboard at `dashboardPath` (default /logs).
  *
  * Throws if no JWT secret or no admins are configured.
  *
@@ -78,11 +75,13 @@ export interface ExpressLoggerOptions {
  * const app = express();
  * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', jwtSecret: process.env.LOGS_JWT_SECRET, admins: ['cto@company.com'], beginswith: ['/api'], specifics: ['/auth'] });
  */
-export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes, alerts }: ExpressLoggerOptions) => {
+export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes, alerts, dashboardPath }: ExpressLoggerOptions) => {
     // Validate before touching the database or the app.
     setJwtSecret(resolveJwtSecret(jwtSecret));
     setAdmins(resolveAdmins(admins));
     setEncryptionKey(encryptionKey);
+    const base = normalizeBasePath(dashboardPath);
+    setDashboardBasePath(base);
     configureCore({ redact, maxBodyBytes });
     setCustomSender(alerts?.sendEmail);
     getWriter().onWritten(logs => evaluateLogs(logs));
@@ -104,29 +103,7 @@ export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtS
         })
         .catch(err => console.error('node api logger db connection error:', err));
 
-    app.use(cookieParser());
-
-    // Middleware for logging
+    // Logging first, so it sees every request; the dashboard only answers under its path.
     app.use(logMiddleware(beginswith, specifics));
-
-    // API and Auth Routes
-    app.use('/logs/api', apiRoutes);
-    app.use('/logs/auth', authRoutes);
-
-    // Serve static CSS files
-    app.use('/styles', express.static(path.join(__dirname, '../../src/views/styles')));
-    //Js
-    app.use('/js', express.static(path.join(__dirname, '../../src/views/js')));
-
-    // Serve static HTML files (login unprotected)
-    app.get('/logs/login', (req, res) => res.sendFile(path.join(__dirname, '../../src/views/login.html')));
-    // Invite / setup links (unprotected: the single-use token is the credential)
-    app.get('/logs/invite/:token', (req, res) => res.sendFile(path.join(__dirname, '../../src/views/invite.html')));
-    // Dashboard HomePage (protected)
-    app.get('/logs', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/logs.html')));
-    app.get('/logs/home', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/home.html')));
-    // Settings Page (protected)
-    app.get('/logs/settings', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/settings.html')));
-    app.get('/logs/:id', verifyToken, (req, res) => res.sendFile(path.join(__dirname, '../../src/views/logDetails.html')));
-
+    app.use(createDashboard(base));
 };

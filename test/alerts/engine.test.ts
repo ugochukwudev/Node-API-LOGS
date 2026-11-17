@@ -62,7 +62,7 @@ describe("alert engine", () => {
 		expect(sent).toHaveLength(1);
 		expect(sent[0].to).toBe("owner@company.com");
 		expect(sent[0].subject).toBe("[API Logs] 500 on POST /api/payments");
-		expect(sent[0].text).toContain(`https://api.company.com/logs/${l._id}`);
+		expect(sent[0].text).toContain(`https://api.company.com/logs/requests/${l._id}`);
 	});
 
 	it("holds repeats during the cooldown, then sends one 'N more' follow-up", async () => {

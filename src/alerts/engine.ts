@@ -77,7 +77,7 @@ const recipientsFor = async (rule: Rule): Promise<string[]> => {
 const logLink = async (logId: string) => {
     const settings = await getEmailSettings();
     const base = (settings?.dashboardUrl || '').replace(/\/$/, '');
-    return base ? `${base}${getDashboardBasePath()}/${logId}` : '';
+    return base ? `${base}${getDashboardBasePath()}/requests/${logId}` : '';
 };
 
 interface Notice {

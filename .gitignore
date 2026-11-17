@@ -4,4 +4,5 @@ coverage
 *.log
 .DS_Store
 .env
-.env.local.test-dist-*
+.env.local
+.test-dist-*

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import mongoose from 'mongoose';
 import User from './models/user.model';
-import { createInvite, resetTwoFactor } from './core/accounts';
+import { createInvite, invitePath, resetTwoFactor } from './core/accounts';
+import { normalizeBasePath } from './dashboard/server';
 import { normalizeEmail } from './core/config';
 import { maskStoredLogs } from './core/migrate';
 import { cleanupOrphanBlobs } from './core/blobs';
@@ -22,7 +23,8 @@ Usage:
 
 Options:
   --mongo-uri <uri>   Logs database (or set MONGODB_URI / node_api_logger_mongoUri)
-  --url <base>        Your app's address, to print a full link (e.g. https://api.company.com)`;
+  --url <base>        Your app's address, to print a full link (e.g. https://api.company.com)
+  --path <path>       Dashboard path if you changed dashboardPath (default /logs)`;
 
 const argValue = (args: string[], flag: string) => {
     const i = args.indexOf(flag);
@@ -66,6 +68,8 @@ export const run = async (argv: string[], print: (line: string) => void = consol
         }
         if (command === 'invite') {
             const invite = await createInvite(email);
+            const dashboardPath = argValue(argv, '--path');
+            if (dashboardPath) invite.path = invitePath(invite.token, normalizeBasePath(dashboardPath));
             print(`Setup link for ${email} (valid 24h, single use):`);
             print(`${base}${invite.path}`);
             if (!base) print('Open it on your app\'s address, e.g. https://your-app.com' + invite.path);
