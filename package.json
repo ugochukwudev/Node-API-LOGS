@@ -4,16 +4,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json && npm run build:ui",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts",
-    "build:css": "tailwindcss -i src/views/styles/input.css -o src/views/styles/tailwind.css --minify",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "test:performance": "node test-performance.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "build:ui": "tsc -p tsconfig.ui.json && node scripts/build-ui.mjs",
+    "dev:ui": "node scripts/build-ui.mjs --watch"
   },
   "keywords": [],
   "author": "",
@@ -42,28 +42,25 @@
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^6.0.3",
     "agenda": "^6.2.8",
-    "autoprefixer": "^10.6.2",
     "bull": "^4.16.5",
     "bullmq": "^6.7.7",
+    "esbuild": "^0.28.2",
     "jest": "^30.2.0",
     "mongodb-memory-server": "^10.4.1",
     "nodemailer": "^10.6.0",
-    "nodemon": "^3.1.14",
     "pg-boss": "^12.38.2",
-    "postcss": "^8.5.33",
-    "postcss-cli": "^11.0.1",
+    "preact": "^11.2.0",
     "supertest": "^7.1.4",
-    "tailwindcss": "^3.4.19",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "uplot": "^1.6.32"
   },
   "engines": {
     "node": ">=18"
   },
   "files": [
-    "dist",
-    "src/views"
+    "dist"
   ],
   "exports": {
     ".": {

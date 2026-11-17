@@ -1,13 +1,13 @@
 import crypto from 'crypto';
 import User from '../models/user.model';
 import Invite from '../models/invite.model';
-import { getAdmins, normalizeEmail } from './config';
+import { getAdmins, getDashboardBasePath, normalizeEmail } from './config';
 
 export const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const sha256 = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
 
-export const invitePath = (token: string) => `/logs/invite/${token}`;
+export const invitePath = (token: string, base = getDashboardBasePath()) => `${base}/invite/${token}`;
 
 /**
  * Create a fresh single-use setup link for an email, creating the user if

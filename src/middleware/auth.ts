@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { getJwtSecret } from '../core/config';
+import { getDashboardBasePath, getJwtSecret } from '../core/config';
 
 export const SESSION_COOKIE = 'token';
 export const PENDING_COOKIE = 'logs_pending';
@@ -15,13 +15,14 @@ const cookieOptions = (req: Request, maxAgeS: number) => ({
     // Secure whenever the request came in over HTTPS (set `trust proxy` behind a proxy).
     secure: req.secure,
     maxAge: maxAgeS * 1000,
-    path: '/',
+    // Only sent to the dashboard, never to the rest of the host app.
+    path: getDashboardBasePath(),
 });
 
 /** Full dashboard session, only issued after the authenticator code. */
 export const issueSession = (req: Request, res: Response, user: { _id: unknown; role: string }) => {
     const token = jwt.sign({ id: String(user._id), role: user.role, purpose: 'session' }, getJwtSecret(), { expiresIn: SESSION_TTL_S });
-    res.clearCookie(PENDING_COOKIE, { path: '/' });
+    res.clearCookie(PENDING_COOKIE, { path: getDashboardBasePath() });
     res.cookie(SESSION_COOKIE, token, cookieOptions(req, SESSION_TTL_S));
 };
 
@@ -32,16 +33,14 @@ export const issuePending = (req: Request, res: Response, userId: unknown, stage
 };
 
 export const clearAuthCookies = (res: Response) => {
-    res.clearCookie(SESSION_COOKIE, { path: '/' });
-    res.clearCookie(PENDING_COOKIE, { path: '/' });
+    res.clearCookie(SESSION_COOKIE, { path: getDashboardBasePath() });
+    res.clearCookie(PENDING_COOKIE, { path: getDashboardBasePath() });
 };
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.[SESSION_COOKIE];
-    const isApiRequest = req.originalUrl.startsWith('/logs/api') || req.originalUrl.startsWith('/logs/auth');
-    const reject = (message: string) => isApiRequest
-        ? res.status(401).json({ message })
-        : res.redirect('/logs/login');
+    // Pages are public shells; only the API needs a session, so this always answers JSON.
+    const reject = (message: string) => res.status(401).json({ message });
     if (!token) return reject('Unauthorized');
 
     try {
