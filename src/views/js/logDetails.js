@@ -1,3 +1,6 @@
+// Logged values come from whoever called the API: always escape before inserting as HTML.
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 document.addEventListener('DOMContentLoaded', () => {
   const id = window.location.pathname.split('/').pop();
   const metaEl = document.getElementById('meta');
@@ -26,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function methodColor(method) {
-    switch(method.toLowerCase()) {
+    switch(String(method).toLowerCase()) {
       case 'get': return 'text-blue-400 bg-blue-500/20';
       case 'post': return 'text-green-400 bg-green-500/20';
       case 'put': return 'text-yellow-400 bg-yellow-500/20';
@@ -70,17 +73,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-sm font-medium text-slate-400">Method</span>
-                <span class="px-3 py-1 rounded-full text-xs font-medium ${methodColor(log.method)}">${log.method}</span>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${methodColor(log.method)}">${escapeHtml(log.method)}</span>
               </div>
-              <div class="text-white font-mono text-sm">${log.method}</div>
+              <div class="text-white font-mono text-sm">${escapeHtml(log.method)}</div>
             </div>
             
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-sm font-medium text-slate-400">Status</span>
-                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor(log.status)} ${statusBgColor(log.status)}">${log.status}</span>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusColor(log.status)} ${statusBgColor(log.status)}">${escapeHtml(log.status)}</span>
               </div>
-              <div class="text-white font-mono text-sm">${log.status}</div>
+              <div class="text-white font-mono text-sm">${escapeHtml(log.status)}</div>
             </div>
             
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
@@ -90,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
-              <div class="text-white font-mono text-sm">${log.responseTime} ms</div>
+              <div class="text-white font-mono text-sm">${escapeHtml(log.responseTime)} ms</div>
             </div>
             
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50 md:col-span-2 lg:col-span-3">
@@ -100,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
                 </svg>
               </div>
-              <div class="text-white font-mono text-sm break-all">${log.endpoint}</div>
+              <div class="text-white font-mono text-sm break-all">${escapeHtml(log.endpoint)}</div>
             </div>
             
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
@@ -110,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                 </svg>
               </div>
-              <div class="text-white font-mono text-sm">${log.ip}</div>
+              <div class="text-white font-mono text-sm">${escapeHtml(log.ip)}</div>
             </div>
             
             <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">

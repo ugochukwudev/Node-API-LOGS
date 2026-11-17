@@ -162,7 +162,7 @@ describe("createExpressLogger", () => {
 		delete process.env[JWT_SECRET_ENV];
 		try {
 			expect(() =>
-				createExpressLogger({ app: express(), mongoUri: "mongodb://unused" })
+				createExpressLogger({ app: express(), mongoUri: "mongodb://unused", admins: ["cto@company.com"] })
 			).toThrow(/no JWT secret configured/);
 		} finally {
 			if (saved !== undefined) process.env[JWT_SECRET_ENV] = saved;

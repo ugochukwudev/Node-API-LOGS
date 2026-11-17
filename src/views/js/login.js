@@ -1,35 +1,19 @@
-document.getElementById('login-form').addEventListener('submit', async (e) => {
+const { bind, showError, clearError, postJson, withBusy, startEnroll, startVerify } = window.TwoFactor;
+bind();
+
+document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
-
-    const loginBtn = document.getElementById('login-btn');
-    const errorDiv = document.getElementById('error-message');
-    loginBtn.textContent = 'Loading...';
-    errorDiv.classList.add('hidden');
-    errorDiv.classList.remove('block');
-
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    try {
-        const response = await fetch('/logs/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            window.location.href = '/logs/home';
-        } else {
-            errorDiv.textContent = result.message || 'Login failed';
-            errorDiv.classList.remove('hidden');
-            errorDiv.classList.add('block');
-            loginBtn.textContent = 'Login';
+    clearError();
+    withBusy(document.getElementById('login-btn'), 'Signing in...', async () => {
+        try {
+            const result = await postJson('/logs/auth/login', {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+            });
+            if (result.next === 'enroll') await startEnroll();
+            else startVerify();
+        } catch (err) {
+            showError(err.message);
         }
-    } catch (error) {
-        errorDiv.textContent = error.message || 'An unexpected error occurred';
-        errorDiv.classList.remove('hidden');
-        errorDiv.classList.add('block');
-        loginBtn.textContent = 'Login';
-    }
+    });
 });
