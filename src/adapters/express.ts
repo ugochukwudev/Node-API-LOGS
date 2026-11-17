@@ -8,6 +8,9 @@ import { verifyToken } from '../middleware/auth';
 import { createIndexes } from '../utils/indexes';
 import { resolveAdmins, resolveJwtSecret, setAdmins, setEncryptionKey, setJwtSecret } from '../core/config';
 import { bootstrapAdmins } from '../core/accounts';
+import { getWriter } from '../core';
+import { evaluateLogs, startAlertTimers } from '../alerts/engine';
+import { SendEmailFn, setCustomSender } from '../alerts/email';
 import { configureCore, trackRequest, ipOf } from '../core';
 import { RedactOptions } from '../core/redact';
 import { createRouteFilter, RoutePattern } from '../core/filter';
@@ -58,6 +61,10 @@ export interface ExpressLoggerOptions {
     redact?: RedactOptions;
     /** Largest response body kept per request, in bytes. Default 1 MB. */
     maxBodyBytes?: number;
+    alerts?: {
+        /** Send alert emails with your own code instead of a provider set up in the dashboard. */
+        sendEmail?: SendEmailFn;
+    };
 }
 
 /**
@@ -71,12 +78,14 @@ export interface ExpressLoggerOptions {
  * const app = express();
  * createExpressLogger({ app, mongoUri: 'mongodb://localhost:27017/mydb', jwtSecret: process.env.LOGS_JWT_SECRET, admins: ['cto@company.com'], beginswith: ['/api'], specifics: ['/auth'] });
  */
-export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes }: ExpressLoggerOptions) => {
+export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtSecret, admins, encryptionKey, redact, maxBodyBytes, alerts }: ExpressLoggerOptions) => {
     // Validate before touching the database or the app.
     setJwtSecret(resolveJwtSecret(jwtSecret));
     setAdmins(resolveAdmins(admins));
     setEncryptionKey(encryptionKey);
     configureCore({ redact, maxBodyBytes });
+    setCustomSender(alerts?.sendEmail);
+    getWriter().onWritten(logs => evaluateLogs(logs));
 
     // Configure connection with pooling and performance optimizations
     mongoose.connect(mongoUri, {
@@ -91,6 +100,7 @@ export const createExpressLogger = ({ app, mongoUri, beginswith, specifics, jwtS
             // Create indexes immediately after connection
             await createIndexes();
             await bootstrapAdmins(line => console.log(line));
+            startAlertTimers();
         })
         .catch(err => console.error('node api logger db connection error:', err));
 

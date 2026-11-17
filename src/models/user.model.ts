@@ -14,6 +14,8 @@ const userSchema = new Schema({
     // SHA-256 hashes of unused one-time backup codes.
     backupCodes: { type: [String], default: [] },
     failedAttempts: { type: Number, default: 0 },
+    // Opt-in daily summary email
+    dailyDigest: { type: Boolean, default: false },
     lockedUntil: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
 });

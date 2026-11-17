@@ -93,3 +93,11 @@ export const decryptSecret = (stored: string): string => {
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 };
+
+let dashboardBasePath = '/logs';
+
+/** Where the dashboard is mounted, e.g. /logs. */
+export const getDashboardBasePath = () => dashboardBasePath;
+export const setDashboardBasePath = (base: string) => {
+    dashboardBasePath = base;
+};

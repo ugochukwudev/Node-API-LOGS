@@ -4,6 +4,10 @@ import {
     getExportFormats, exportLogsHandler, deleteLogsHandler, getSummariesInfo, deleteSummariesHandler,
 } from '../controllers/api';
 import { listJobs, getJob, getLogJobs } from '../controllers/jobs';
+import {
+    getAlertSettings, getAlertStatus, saveAlertSettings, sendTestEmail,
+    listRules, createRule, updateRule, deleteRule, getDigest, setDigest,
+} from '../controllers/alerts';
 import { verifyToken, requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -28,5 +32,17 @@ router.post('/summaries/delete', verifyToken, requireAdmin, deleteSummariesHandl
 // Queued jobs
 router.get('/jobs', verifyToken, listJobs);
 router.get('/jobs/:id', verifyToken, getJob);
+
+// Alerts: email settings (admins), rules (personal; team rules by admins), daily summary
+router.get('/alerts/status', verifyToken, getAlertStatus);
+router.get('/alerts/settings', verifyToken, requireAdmin, getAlertSettings);
+router.put('/alerts/settings', verifyToken, requireAdmin, saveAlertSettings);
+router.post('/alerts/test', verifyToken, requireAdmin, sendTestEmail);
+router.get('/alerts/rules', verifyToken, listRules);
+router.post('/alerts/rules', verifyToken, createRule);
+router.put('/alerts/rules/:id', verifyToken, updateRule);
+router.delete('/alerts/rules/:id', verifyToken, deleteRule);
+router.get('/alerts/digest', verifyToken, getDigest);
+router.put('/alerts/digest', verifyToken, setDigest);
 
 export default router;
