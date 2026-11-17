@@ -48,23 +48,6 @@ export const getStartDateFromTimeRange = (timeRange: string): Date => {
 };
 
 /**
- * Build optimized endpoint regex filter
- */
-export const buildEndpointFilter = (endpoint: unknown): { endpoint: { $regex: string; $options: string } } | {} => {
-	if (!endpoint || typeof endpoint !== "string" || endpoint.trim().length < 3) {
-		return {};
-	}
-
-	const endpointTrimmed = endpoint.trim();
-	return {
-		endpoint: {
-			$regex: `^${endpointTrimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
-			$options: "i",
-		},
-	};
-};
-
-/**
  * Build date filter from query params
  */
 export const buildDateFilter = (date?: unknown, time?: unknown): { date: { $gte: Date; $lt?: Date } } | {} => {
@@ -91,53 +74,6 @@ export const buildDateFilter = (date?: unknown, time?: unknown): { date: { $gte:
 	return {
 		date: { $gte: start, $lt: end },
 	};
-};
-
-/**
- * Build status filter from query params
- */
-export const buildStatusFilter = (status?: unknown): { status: number } | {} => {
-	if (!status || typeof status !== "string") {
-		return {};
-	}
-	return { status: parseInt(status, 10) };
-};
-
-/**
- * Build all filters from request query params
- */
-export interface FilterOptions {
-	endpoint?: unknown;
-	date?: unknown;
-	time?: unknown;
-	status?: unknown;
-	defaultDaysAgo?: number;
-}
-
-export const buildFilters = (options: FilterOptions): any => {
-	const { endpoint, date, time, status, defaultDaysAgo = 30 } = options;
-	const filters: any = {};
-
-	// Default date filter
-	if (defaultDaysAgo > 0) {
-		const defaultDate = new Date();
-		defaultDate.setDate(defaultDate.getDate() - defaultDaysAgo);
-		filters.date = { $gte: defaultDate };
-	}
-
-	// Apply specific filters (they will override defaults)
-	Object.assign(filters, buildEndpointFilter(endpoint));
-	Object.assign(filters, buildDateFilter(date, time));
-	Object.assign(filters, buildStatusFilter(status));
-
-	return filters;
-};
-
-/**
- * Check if endpoint filter uses regex
- */
-export const hasRegexEndpoint = (endpoint?: unknown): boolean => {
-	return !!(endpoint && typeof endpoint === "string" && endpoint.trim().length > 2);
 };
 
 /**

@@ -84,22 +84,18 @@ describe("API Controllers", () => {
 			}
 		});
 
-		it("should skip countDocuments for regex endpoint queries", async () => {
+		it("should return an estimated total for text searches", async () => {
 			await createTestLogs(5);
 			const req = createMockRequest({
 				query: { endpoint: "api/test" },
 			}) as Request;
 			const res = createMockResponse() as Response;
 
-			const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
-
 			await getLogs(req, res);
 
-			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining("Skipping countDocuments")
-			);
-
-			consoleSpy.mockRestore();
+			const data = getResponseData(res);
+			expect(data.estimated).toBe(true);
+			expect(data.logs.length).toBe(5);
 		});
 
 		it("should handle errors gracefully", async () => {
